@@ -1,26 +1,32 @@
 from langchain_core.messages import (
     AIMessage,
-)
-from langchain_core.messages import (
     HumanMessage,
 )
 
-from state.schema import ResearchState
+from state.schema import (
+    ResearchState,
+)
 
 
 class SessionMemory:
     """Manages conversational session memory."""
 
-    MAX_RECENT_MESSAGES = 6
+    MAX_RECENT_MESSAGES = 10
 
     @staticmethod
     def add_user_message(
         state: ResearchState,
         message: str,
     ) -> None:
+        """Store user message."""
+
+        if not message.strip():
+
+            return
+
         state["messages"].append(
             HumanMessage(
-                content=message,
+                content=message.strip(),
             )
         )
 
@@ -29,9 +35,15 @@ class SessionMemory:
         state: ResearchState,
         message: str,
     ) -> None:
+        """Store assistant message."""
+
+        if not message.strip():
+
+            return
+
         state["messages"].append(
             AIMessage(
-                content=message,
+                content=message.strip(),
             )
         )
 
@@ -39,7 +51,11 @@ class SessionMemory:
     def get_recent_messages(
         state: ResearchState,
     ) -> list:
-        return state["messages"][
+        """Return recent conversational context."""
+
+        return state[
+            "messages"
+        ][
             -SessionMemory
             .MAX_RECENT_MESSAGES:
         ]
@@ -48,4 +64,16 @@ class SessionMemory:
     def increment_turn(
         state: ResearchState,
     ) -> None:
-        state["conversation_turn"] += 1
+        """Increment conversation turn."""
+
+        state[
+            "conversation_turn"
+        ] += 1
+
+    @staticmethod
+    def clear_messages(
+        state: ResearchState,
+    ) -> None:
+        """Clear session messages."""
+
+        state["messages"] = []

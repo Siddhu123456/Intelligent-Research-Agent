@@ -1,10 +1,14 @@
 from memory.session_memory import (
     SessionMemory,
 )
+
 from memory.summary_memory import (
     SummaryMemory,
 )
-from state.schema import ResearchState
+
+from state.schema import (
+    ResearchState,
+)
 
 
 class MemoryManager:
@@ -16,30 +20,47 @@ class MemoryManager:
         user_query: str,
         assistant_response: str,
     ) -> None:
+        """Update conversational memory state."""
+
+        # Store user message
+
         SessionMemory.add_user_message(
             state,
             user_query,
         )
+
+        # Store assistant response
 
         SessionMemory.add_ai_message(
             state,
             assistant_response,
         )
 
+        # Increment conversation turn
+
         SessionMemory.increment_turn(
             state,
         )
 
-        should_summarize = (
+        # Update long-term summary memory
+
+        if (
             SummaryMemory.should_summarize(
                 state,
             )
-        )
+        ):
 
-        if should_summarize:
-            state["conversation_summary"] = (
+            updated_summary = (
                 SummaryMemory
                 .update_summary(
                     state,
                 )
             )
+
+            if updated_summary:
+
+                state[
+                    "conversation_summary"
+                ] = (
+                    updated_summary
+                )

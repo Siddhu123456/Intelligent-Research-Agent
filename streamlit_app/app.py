@@ -15,21 +15,39 @@ sys.path.insert(
 
 import asyncio
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import (
+    ThreadPoolExecutor,
+)
 
 import streamlit as st
 
-from graph.executor import GraphExecutor
-from utils.state_factory import StateFactory
+from graph.executor import (
+    GraphExecutor,
+)
+
+from utils.state_factory import (
+    StateFactory,
+)
+
+from utils.state_manager import (
+    StateManager,
+)
 
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+st.set_page_config(
+    page_title="AI Research Workspace",
+    layout="wide",
+)
+
+
+# Session initialization
 
 if "state" not in st.session_state:
+
     st.session_state.state = None
 
 if "executor" not in st.session_state:
+
     st.session_state.executor = (
         ThreadPoolExecutor(
             max_workers=1,
@@ -37,9 +55,18 @@ if "executor" not in st.session_state:
     )
 
 if "graph_executor" not in st.session_state:
+
     st.session_state.graph_executor = (
         GraphExecutor()
     )
+
+if "refinement_input" not in st.session_state:
+
+    st.session_state.refinement_input = ""
+
+if "chat_input" not in st.session_state:
+
+    st.session_state.chat_input = ""
 
 
 graph_executor = (
@@ -47,12 +74,56 @@ graph_executor = (
 )
 
 
-# Sidebar report history
+def execute_workflow(
+    state,
+):
 
-with st.sidebar:
+    def run_workflow():
 
-    st.header(
-        "Research History"
+        return asyncio.run(
+            graph_executor
+            .run_with_state(
+                state,
+            )
+        )
+
+    future = (
+        st.session_state.executor
+        .submit(
+            run_workflow,
+        )
+    )
+
+    return future.result()
+
+
+# Sidebar
+
+with st.sidebar():
+
+    st.title(
+        "Research Workspace"
+    )
+
+    st.divider()
+
+    if st.button(
+        "New Research",
+        use_container_width=True,
+    ):
+
+        st.session_state.state = None
+
+        st.session_state.refinement_input = ""
+
+        st.session_state.chat_input = ""
+
+        st.rerun()
+
+    st.divider()
+
+    st.subheader(
+        "Report History"
     )
 
     if (
@@ -73,14 +144,18 @@ with st.sidebar:
             start=1,
         ):
 
-            st.markdown(
-                f"### {index}. "
-                f"{item['query']}"
-            )
+            with st.container():
 
-            st.caption(
-                item["timestamp"]
-            )
+                st.markdown(
+                    f"### {index}. "
+                    f"{item['query']}"
+                )
+
+                st.caption(
+                    item["timestamp"]
+                )
+
+                st.divider()
 
     else:
 
@@ -89,56 +164,52 @@ with st.sidebar:
         )
 
 
-# Render chat history
+# Main workspace
 
-for message in (
-    st.session_state.messages
-):
-
-    with st.chat_message(
-        message["role"],
-    ):
-
-        st.markdown(
-            message["content"],
-        )
-
-
-query = st.chat_input(
-    "Ask a research question...",
+st.title(
+    "AI Research Workspace"
 )
 
-
-if query:
-
-    # Render user message
-
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": query,
-        }
+st.markdown(
+    (
+        "Generate professional "
+        "research reports with "
+        "multi-source analysis."
     )
+)
 
-    with st.chat_message(
-        "user",
-    ):
+st.divider()
 
-        st.markdown(query)
 
-    # Generate assistant response
+# Research generation
 
-    with st.chat_message(
-        "assistant",
-    ):
+query = st.text_input(
+    "Enter research topic",
+    placeholder=(
+        "Example: Quantum Computing "
+        "Applications"
+    ),
+)
+
+if st.button(
+    "Generate Report",
+    use_container_width=True,
+):
+
+    if not query.strip():
+
+        st.warning(
+            "Please enter a "
+            "research topic."
+        )
+
+    else:
 
         with st.spinner(
-            "Researching...",
+            "Generating research report...",
         ):
 
             try:
-
-                # Create initial state
 
                 if (
                     st.session_state.state
@@ -152,138 +223,414 @@ if query:
                         )
                     )
 
-                # Continue existing session
-
                 else:
-
-                    previous_state = (
-                        st.session_state.state
-                    )
 
                     state = (
-                        StateFactory
-                        .create_initial_state(
+                        StateManager
+                        .prepare_next_workflow(
+                            previous_state=(
+                                st.session_state.state
+                            ),
                             query=query,
+                            mode=(
+                                "REPORT_GENERATION"
+                            ),
                         )
                     )
-
-                    state[
-                        "conversation_turn"
-                    ] = (
-                        previous_state.get(
-                            "conversation_turn",
-                            0,
-                        )
-                    )
-
-                    state[
-                        "conversation_summary"
-                    ] = (
-                        previous_state.get(
-                            "conversation_summary",
-                            "",
-                        )
-                    )
-
-                    state[
-                        "report_history"
-                    ] = (
-                        previous_state.get(
-                            "report_history",
-                            [],
-                        )
-                    )
-
-                    state[
-                        "session_id"
-                    ] = (
-                        previous_state.get(
-                            "session_id",
-                        )
-                    )
-
-                # Execute workflow
-
-                def run_agent():
-
-                    return asyncio.run(
-                        graph_executor
-                        .run_with_state(
-                            state,
-                        )
-                    )
-
-                future = (
-                    st.session_state.executor
-                    .submit(
-                        run_agent,
-                    )
-                )
 
                 result = (
-                    future.result()
-                )
-
-                # Handle workflow errors
-
-                if result.get(
-                    "error",
-                ):
-
-                    response = (
-                        f"Error:\n\n"
-                        f"{result['error']}"
+                    execute_workflow(
+                        state,
                     )
-
-                # Extract latest report
-
-                else:
-
-                    report_history = (
-                        result.get(
-                            "report_history",
-                            [],
-                        )
-                    )
-
-                    if report_history:
-
-                        response = (
-                            report_history[-1][
-                                "report"
-                            ]
-                        )
-
-                    else:
-
-                        response = (
-                            "No response generated."
-                        )
-
-                # Render response
-
-                st.markdown(
-                    response,
                 )
-
-                # Persist UI chat history
-
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "content": response,
-                    }
-                )
-
-                # Persist latest workflow state
 
                 st.session_state.state = (
                     result
                 )
 
+                st.rerun()
+
             except Exception as error:
 
                 st.error(
-                    f"Application Error:\n\n"
-                    f"{str(error)}"
+                    (
+                        "Application Error:\n\n"
+                        f"{str(error)}"
+                    )
                 )
+
+
+# Active report workspace
+
+if (
+    st.session_state.state
+    and st.session_state.state.get(
+        "active_report",
+    )
+):
+
+    report = (
+        st.session_state.state[
+            "active_report"
+        ]
+    )
+
+    st.divider()
+
+    workspace_tab_1, workspace_tab_2, workspace_tab_3 = (
+        st.tabs(
+            [
+                "Research Report",
+                "Report Chat",
+                "Version History",
+            ]
+        )
+    )
+
+    # Report tab
+
+    with workspace_tab_1:
+
+        st.subheader(
+            "Research Report"
+        )
+
+        st.markdown(
+            report,
+        )
+
+        st.divider()
+
+        # Human-in-the-loop PDF generation
+
+        st.subheader(
+            "Export Document"
+        )
+
+        st.info(
+            (
+                "Review the generated report "
+                "before exporting it as PDF."
+            )
+        )
+
+        if st.button(
+            "Generate PDF",
+            use_container_width=True,
+        ):
+
+            with st.spinner(
+                "Generating PDF document...",
+            ):
+
+                try:
+
+                    state = (
+                        StateManager
+                        .prepare_next_workflow(
+                            previous_state=(
+                                st.session_state.state
+                            ),
+                            query=(
+                                st.session_state
+                                .state["query"]
+                            ),
+                            mode=(
+                                "DOCUMENT_GENERATION"
+                            ),
+                        )
+                    )
+
+                    result = (
+                        execute_workflow(
+                            state,
+                        )
+                    )
+
+                    st.session_state.state = (
+                        result
+                    )
+
+                    st.rerun()
+
+                except Exception as error:
+
+                    st.error(
+                        (
+                            "PDF Generation Error:\n\n"
+                            f"{str(error)}"
+                        )
+                    )
+
+        generated_pdf = (
+            st.session_state.state.get(
+                "generated_pdf",
+            )
+        )
+
+        if generated_pdf:
+
+            st.success(
+                "PDF generated successfully."
+            )
+
+            st.download_button(
+                label="Download PDF",
+                data=generated_pdf,
+                file_name=(
+                    "research_report.pdf"
+                ),
+                mime=(
+                    "application/pdf"
+                ),
+                use_container_width=True,
+            )
+
+        st.divider()
+
+        st.subheader(
+            "Refine Report"
+        )
+
+        refinement_query = (
+            st.text_area(
+                "Refinement Instructions",
+                value=(
+                    st.session_state
+                    .refinement_input
+                ),
+                placeholder=(
+                    "Example: Add recent "
+                    "industry applications, "
+                    "security challenges, "
+                    "and future trends."
+                ),
+                height=140,
+            )
+        )
+
+        if st.button(
+            "Apply Refinement",
+            use_container_width=True,
+        ):
+
+            if not refinement_query.strip():
+
+                st.warning(
+                    "Please enter a "
+                    "refinement instruction."
+                )
+
+            else:
+
+                with st.spinner(
+                    "Refining report...",
+                ):
+
+                    try:
+
+                        state = (
+                            StateManager
+                            .prepare_next_workflow(
+                                previous_state=(
+                                    st.session_state.state
+                                ),
+                                query=(
+                                    refinement_query
+                                ),
+                                mode=(
+                                    "REPORT_REFINEMENT"
+                                ),
+                                refinement_query=(
+                                    refinement_query
+                                ),
+                            )
+                        )
+
+                        result = (
+                            execute_workflow(
+                                state,
+                            )
+                        )
+
+                        st.session_state.state = (
+                            result
+                        )
+
+                        st.session_state.refinement_input = ""
+
+                        st.rerun()
+
+                    except Exception as error:
+
+                        st.error(
+                            (
+                                "Refinement Error:\n\n"
+                                f"{str(error)}"
+                            )
+                        )
+
+    # Report chat tab
+
+    with workspace_tab_2:
+
+        st.subheader(
+            "Ask Questions About Report"
+        )
+
+        chat_query = st.text_input(
+            "Ask a question",
+            value=(
+                st.session_state
+                .chat_input
+            ),
+            placeholder=(
+                "Example: What were the "
+                "main technical findings?"
+            ),
+        )
+
+        if st.button(
+            "Ask Report",
+            use_container_width=True,
+        ):
+
+            if not chat_query.strip():
+
+                st.warning(
+                    "Please enter a "
+                    "question."
+                )
+
+            else:
+
+                with st.spinner(
+                    "Analyzing report...",
+                ):
+
+                    try:
+
+                        state = (
+                            StateManager
+                            .prepare_next_workflow(
+                                previous_state=(
+                                    st.session_state.state
+                                ),
+                                query=chat_query,
+                                mode=(
+                                    "REPORT_CHAT"
+                                ),
+                                report_chat_query=(
+                                    chat_query
+                                ),
+                            )
+                        )
+
+                        result = (
+                            execute_workflow(
+                                state,
+                            )
+                        )
+
+                        st.session_state.state = (
+                            result
+                        )
+
+                        st.session_state.chat_input = ""
+
+                        st.rerun()
+
+                    except Exception as error:
+
+                        st.error(
+                            (
+                                "Report Chat Error:\n\n"
+                                f"{str(error)}"
+                            )
+                        )
+
+        report_chat_response = (
+            st.session_state.state.get(
+                "report_chat_response",
+                "",
+            )
+        )
+
+        if report_chat_response:
+
+            st.divider()
+
+            st.subheader(
+                "Report Answer"
+            )
+
+            st.markdown(
+                report_chat_response,
+            )
+
+    # Version history tab
+
+    with workspace_tab_3:
+
+        version_history = (
+            st.session_state.state.get(
+                "report_version_history",
+                [],
+            )
+        )
+
+        if not version_history:
+
+            st.info(
+                "No report versions available."
+            )
+
+        else:
+
+            st.subheader(
+                "Report Versions"
+            )
+
+            st.caption(
+                (
+                    f"Total Versions: "
+                    f"{len(version_history)}"
+                )
+            )
+
+            for index, version in enumerate(
+                reversed(version_history),
+                start=1,
+            ):
+
+                with st.expander(
+                    (
+                        f"Version {index} "
+                        f"({version['mode']})"
+                    )
+                ):
+
+                    if version.get(
+                        "refinement_query",
+                    ):
+
+                        st.markdown(
+                            (
+                                "### Refinement "
+                                "Instruction"
+                            )
+                        )
+
+                        st.write(
+                            version[
+                                "refinement_query"
+                            ]
+                        )
+
+                    st.markdown(
+                        "### Report Snapshot"
+                    )
+
+                    st.markdown(
+                        version["report"]
+                    )

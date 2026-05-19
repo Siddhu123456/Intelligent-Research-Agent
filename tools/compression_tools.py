@@ -1,5 +1,3 @@
-import re
-
 from langchain_core.prompts import (
     ChatPromptTemplate,
 )
@@ -20,13 +18,20 @@ from utils.llm_factory import (
 class CompressionTools:
     """Tools for contextual compression."""
 
+    MIN_CONTENT_LENGTH = 30
+
+    MAX_DOCUMENT_LENGTH = 4000
+
     @staticmethod
     def compress_documents(
         query: str,
         documents: list[Document],
     ) -> list[Document]:
+        """Compress retrieved documents."""
+
         llm = (
-            LLMFactory.create_qwen_llm(
+            LLMFactory
+            .create_qwen_llm(
                 temperature=0.1,
             )
         )
@@ -36,7 +41,8 @@ class CompressionTools:
         for document in documents:
 
             prompt = (
-                ChatPromptTemplate.from_messages(
+                ChatPromptTemplate
+                .from_messages(
                     [
                         (
                             "system",
@@ -54,14 +60,14 @@ class CompressionTools:
                                 "to the query\n"
                                 "- keep the response concise\n"
                                 "- return factual compressed "
-                                "content only\n\n"
-                                "Do NOT include reasoning.\n"
-                                "Do NOT include "
-                                "<think> tags.\n\n"
-                                "Return ONLY valid JSON.\n\n"
+                                "content only\n"
+                                "- do not include reasoning\n"
+                                "- do not include "
+                                "<think> tags\n"
+                                "- return only valid JSON\n\n"
                                 "Format:\n"
                                 "{{\n"
-                                '  "content": "..." \n'
+                                '  "content": "..."\n'
                                 "}}"
                             ),
                         ),
@@ -88,40 +94,57 @@ class CompressionTools:
                     "query": query,
                     "document_content": (
                         document.content[
-                            :4000
+                            :CompressionTools
+                            .MAX_DOCUMENT_LENGTH
                         ]
                     ),
                 }
             )
 
-            try:
-
-                parsed_response = (
-                    JSONParser.extract_json(
-                        response.content,
-                    )
+            parsed_response = (
+                JSONParser.safe_extract(
+                    content=(
+                        response.content
+                    ),
+                    fallback={
+                        "content": (
+                            document.content
+                        )
+                    },
                 )
+            )
 
-                compressed_content = (
-                    parsed_response[
-                        "content"
-                    ]
+            compressed_content = (
+                parsed_response.get(
+                    "content",
+                    "",
                 )
+                .strip()
+            )
 
-            except Exception:
-
-                compressed_content = (
-                    response.content
+            if (
+                len(
+                    compressed_content,
                 )
+                < CompressionTools
+                .MIN_CONTENT_LENGTH
+            ):
+
+                continue
 
             compressed_documents.append(
                 Document(
-                    source=document.source,
-                    title=document.title,
+                    source=(
+                        document.source
+                    ),
+                    title=(
+                        document.title
+                    ),
                     content=(
                         compressed_content[
-                            :4000
-                        ].strip()
+                            :CompressionTools
+                            .MAX_DOCUMENT_LENGTH
+                        ]
                     ),
                     url=document.url,
                 )
