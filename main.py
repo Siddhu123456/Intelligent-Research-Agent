@@ -1,12 +1,21 @@
-from pprint import pprint
+import asyncio
 
-from graph.executor import GraphExecutor
-from utils.embedding_factory import (
-    EmbeddingFactory,
+from graph.executor import (
+    GraphExecutor,
 )
+
 from memory.memory_manager import (
     MemoryManager,
 )
+
+from utils.embedding_factory import (
+    EmbeddingFactory,
+)
+
+from utils.state_factory import (
+    StateFactory,
+)
+
 
 def bootstrap() -> None:
     """Preload heavy shared resources."""
@@ -14,52 +23,38 @@ def bootstrap() -> None:
     EmbeddingFactory.get_embeddings()
 
 
-def main() -> None:
-    executor = GraphExecutor()
+def print_result(
+    result,
+) -> None:
 
-    result = executor.run(
-        query="What is quantum computing?",
+    print(
+        "\n===== STATUS ====="
     )
 
-    print("\n===== STATUS =====")
-    print(result["current_step"])
+    print(
+        result["current_step"]
+    )
 
-    if result.get("error"):
-        print("\n===== ERROR =====")
-        print(result["error"])
+    if result.get(
+        "error",
+    ):
+
+        print(
+            "\n===== ERROR ====="
+        )
+
+        print(
+            result["error"]
+        )
 
         return
 
-    print("\n===== FINAL REPORT =====\n")
-
-    print(result["final_report"])
-    
-    MemoryManager.update_memory(
-        state=result,
-        user_query=result["query"],
-        assistant_response=(
-            result["analysis_summary"]
-        ),
-    )
-    
-    print("\n===== SESSION INFO =====")
-
     print(
-        f"Session ID: "
-        f"{result['session_id']}"
+        "\n===== ORIGINAL QUERY ====="
     )
 
     print(
-        f"Conversation Turn: "
-        f"{result['conversation_turn']}"
-    )
-
-    print("\n===== MEMORY SUMMARY =====")
-
-    print(
-        result[
-            "conversation_summary"
-        ]
+        result["query"]
     )
 
     print(
@@ -71,27 +66,144 @@ def main() -> None:
             "contextualized_query"
         ]
     )
-    
-    print("\n===== WORKFLOW =====")
 
     print(
-        f"Retries: "
+        "\n===== FINAL REPORT =====\n"
+    )
+
+    print(
+        result["final_report"]
+    )
+
+    print(
+        "\n===== MEMORY SUMMARY ====="
+    )
+
+    print(
+        result[
+            "conversation_summary"
+        ]
+    )
+
+    print(
+        "\n===== WORKFLOW ====="
+    )
+
+    print(
+        f"Conversation Turn: "
+        f"{result['conversation_turn']}"
+    )
+
+    print(
+        f"Retry Count: "
         f"{result['retry_count']}"
     )
 
     print(
-        f"Decision: "
+        f"Workflow Decision: "
         f"{result['workflow_decision']}"
-    )
-    
-    print(
-        "\n===== RETRIEVAL QUALITY ====="
     )
 
     print(
-        f"Optimized Documents: "
+        "\n===== RETRIEVAL ====="
+    )
+
+    print(
+        f"Retrieved Documents: "
         f"{len(result['retrieved_documents'])}"
     )
 
+
+async def main() -> None:
+
+    bootstrap()
+
+    executor = (
+        GraphExecutor()
+    )
+
+    state = (
+        StateFactory
+        .create_initial_state(
+            query=(
+                "What is quantum computing?"
+            ),
+        )
+    )
+
+    print(
+        "\n=============================="
+    )
+
+    print(
+        "FIRST QUERY"
+    )
+
+    print(
+        "=============================="
+    )
+
+    result = await (
+        executor.run_with_state(
+            state,
+        )
+    )
+
+    MemoryManager.update_memory(
+        state=result,
+        user_query=result["query"],
+        assistant_response=(
+            result[
+                "analysis_summary"
+            ]
+        ),
+    )
+
+    print_result(
+        result,
+    )
+
+    print(
+        "\n=============================="
+    )
+
+    print(
+        "SECOND QUERY"
+    )
+
+    print(
+        "=============================="
+    )
+
+    result["query"] = (
+        "What are its real-world applications?"
+    )
+
+    second_result = await (
+        executor.run_with_state(
+            result,
+        )
+    )
+
+    MemoryManager.update_memory(
+        state=second_result,
+        user_query=(
+            second_result["query"]
+        ),
+        assistant_response=(
+            second_result[
+                "analysis_summary"
+            ]
+        ),
+    )
+
+    print_result(
+        second_result,
+    )
+
+
 if __name__ == "__main__":
-    main()
+
+    asyncio.run(
+        main()
+    )

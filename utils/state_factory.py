@@ -33,4 +33,5 @@ class StateFactory:
             "retry_count": 0,
             "max_retries": 2,
             "workflow_decision": "",
+            "report_history": []
         }

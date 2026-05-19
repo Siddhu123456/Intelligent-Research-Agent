@@ -46,5 +46,7 @@ class ResearchState(TypedDict):
     max_retries: int
 
     workflow_decision: str
+    
+    report_history: list[dict]
 
     run_metadata: dict[str, str]

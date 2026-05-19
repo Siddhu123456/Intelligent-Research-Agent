@@ -85,14 +85,9 @@ class Document(BaseModel):
 
         return Domain(value)
 
-    title: str = Field(
-        min_length=1,
-    )
+    title: str
 
-    content: str = Field(
-        min_length=1,
-        max_length=4000,
-    )
+    content: str
 
     url: str | None = None
 
@@ -116,19 +111,7 @@ class Citation(BaseModel):
 
     doc_id: str
 
-    claim: str = Field(
-        min_length=3,
-    )
+    claim: str 
 
-    source: str = Field(
-        min_length=3,
-    )
+    source: str
     
-
-class RewrittenQuery(BaseModel):
-    """Structured output for contextual query rewriting."""
-
-    rewritten_query: str = Field(
-        min_length=3,
-        description="Standalone contextualized research query.",
-    )

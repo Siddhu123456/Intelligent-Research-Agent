@@ -7,6 +7,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+os.environ["HF_TOKEN"] = os.getenv(
+    "HF_TOKEN",
+    ""
+)
+
+
 @dataclass(frozen=True)
 class Settings:
     groq_api_key: str = os.getenv("GROQ_API_KEY")

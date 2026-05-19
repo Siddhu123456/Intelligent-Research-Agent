@@ -2,7 +2,14 @@ from langchain_core.prompts import (
     ChatPromptTemplate,
 )
 
-from state.models import Citation
+from state.models import (
+    Citation,
+)
+
+from utils.json_parser import (
+    JSONParser,
+)
+
 from utils.llm_factory import (
     LLMFactory,
 )
@@ -26,26 +33,64 @@ class ReportTools:
             findings,
         )
 
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
+        prompt = (
+            ChatPromptTemplate.from_messages(
+                [
                     (
-                        "You are an expert "
-                        "research summarizer."
+                        "system",
+                        (
+                            "You are an expert research summarization "
+                            "agent.\n\n"
+
+                            "Your task is to generate a concise and "
+                            "professional research summary.\n\n"
+
+                            "IMPORTANT RULES:\n"
+                            "- Prioritize information directly relevant "
+                            "to the user's query.\n"
+                            "- Ignore unrelated findings.\n"
+                            "- Do not hallucinate unsupported claims.\n"
+                            "- Keep the summary factual and concise.\n\n"
+
+                            "FALLBACK BEHAVIOR:\n"
+                            "- If the provided findings are mostly "
+                            "irrelevant or insufficient, generate a "
+                            "clear high-level summary of the topic "
+                            "based on general knowledge.\n"
+                            "- In fallback mode, explain the topic "
+                            "clearly without referencing unrelated findings.\n\n"
+
+                            "Focus on:\n"
+                            "- key concepts\n"
+                            "- technical insights\n"
+                            "- major applications\n"
+                            "- important conclusions\n\n"
+
+                            "Return ONLY valid JSON.\n\n"
+
+                            "Format:\n"
+                            "{{\n"
+                            '  "summary": "..." \n'
+                            "}}"
+                        ),
                     ),
-                ),
-                (
-                    "human",
                     (
-                        "Query:\n{query}\n\n"
-                        "Findings:\n{findings}"
+                        "human",
+                        (
+                            "Research Query:\n"
+                            "{query}\n\n"
+                            "Research Findings:\n"
+                            "{findings}"
+                        ),
                     ),
-                ),
-            ]
+                ]
+            )
         )
 
-        chain = prompt | llm
+        chain = (
+            prompt
+            | llm
+        )
 
         response = chain.invoke(
             {
@@ -54,7 +99,24 @@ class ReportTools:
             }
         )
 
-        return response.content
+        try:
+
+            parsed_response = (
+                JSONParser.extract_json(
+                    response.content,
+                )
+            )
+
+            return (
+                parsed_response[
+                    "summary"
+                ]
+                .strip()[:4000]
+            )
+
+        except Exception:
+
+            return findings_text[:4000]
 
     @staticmethod
     def format_report(

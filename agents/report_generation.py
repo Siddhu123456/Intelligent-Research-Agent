@@ -12,6 +12,15 @@ from tools.report_tools import (
 from utils.logger import (
     setup_logger,
 )
+from memory.memory_manager import (
+    MemoryManager,
+)
+from utils.state_reset import (
+    StateResetUtility,
+)
+from utils.report_history import (
+    ReportHistoryUtility,
+)
 
 
 logger = setup_logger(__name__)
@@ -62,11 +71,40 @@ class ReportGenerationAgent:
             state["final_report"] = (
                 report
             )
+            
+            ReportHistoryUtility.add_report(
+                state=state,
+                query=state["query"],
+                report=report,
+            )
+            
+            MemoryManager.update_memory(
+                state=state,
+                user_query=state["query"],
+                assistant_response=report,
+            )
 
             state["current_step"] = (
                 CurrentStep.DONE.value
             )
 
+            # Preserve generated report
+            final_report = state[
+                "final_report"
+            ]
+
+            # Reset transient workflow state
+            state = (
+                StateResetUtility
+                .reset_workflow_state(
+                    state,
+                )
+            )
+
+            # Restore final report
+            state["final_report"] = (
+                final_report
+)
             logger.info(
                 "Report generation completed",
             )
