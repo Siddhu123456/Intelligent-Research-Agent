@@ -68,6 +68,10 @@ if "chat_input" not in st.session_state:
 
     st.session_state.chat_input = ""
 
+if "last_action" not in st.session_state:
+
+    st.session_state.last_action = ""
+
 
 graph_executor = (
     st.session_state.graph_executor
@@ -99,7 +103,7 @@ def execute_workflow(
 
 # Sidebar
 
-with st.sidebar():
+with st.sidebar:
 
     st.title(
         "Research Workspace"
@@ -117,6 +121,8 @@ with st.sidebar():
         st.session_state.refinement_input = ""
 
         st.session_state.chat_input = ""
+
+        st.session_state.last_action = ""
 
         st.rerun()
 
@@ -248,6 +254,10 @@ if st.button(
                     result
                 )
 
+                st.session_state.last_action = (
+                    "report_generated"
+                )
+
                 st.rerun()
 
             except Exception as error:
@@ -269,12 +279,6 @@ if (
     )
 ):
 
-    report = (
-        st.session_state.state[
-            "active_report"
-        ]
-    )
-
     st.divider()
 
     workspace_tab_1, workspace_tab_2, workspace_tab_3 = (
@@ -295,9 +299,27 @@ if (
             "Research Report"
         )
 
-        st.markdown(
-            report,
+        latest_report = (
+            st.session_state.state.get(
+                "active_report",
+                "",
+            )
         )
+
+        st.markdown(
+            latest_report,
+        )
+
+        if (
+            st.session_state.last_action
+            == "report_refined"
+        ):
+
+            st.success(
+                "Report refined successfully."
+            )
+
+            st.session_state.last_action = ""
 
         st.divider()
 
@@ -459,6 +481,10 @@ if (
 
                         st.session_state.refinement_input = ""
 
+                        st.session_state.last_action = (
+                            "report_refined"
+                        )
+
                         st.rerun()
 
                     except Exception as error:
@@ -606,7 +632,7 @@ if (
                 with st.expander(
                     (
                         f"Version {index} "
-                        f"({version['mode']})"
+                        f"({version.get('mode', 'unknown')})"
                     )
                 ):
 

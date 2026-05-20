@@ -87,6 +87,25 @@ class SupervisorAgent:
 
             return state
 
+        # IMPORTANT:
+        # Completion must happen BEFORE
+        # mode routing to avoid loops
+
+        if (
+            current_step
+            == CurrentStep.DONE.value
+        ):
+
+            state[
+                "workflow_decision"
+            ] = "complete"
+
+            logger.info(
+                "Workflow completed",
+            )
+
+            return state
+
         # Direct report refinement routing
 
         if (
@@ -220,23 +239,6 @@ class SupervisorAgent:
                 )
 
                 return state
-
-        # Handle workflow completion
-
-        if (
-            current_step
-            == CurrentStep.DONE.value
-        ):
-
-            state[
-                "workflow_decision"
-            ] = "complete"
-
-            logger.info(
-                "Workflow completed",
-            )
-
-            return state
 
         # Default continuation
 

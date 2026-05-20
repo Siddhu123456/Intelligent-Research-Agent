@@ -22,6 +22,8 @@ class StateManager:
         "report_history",
         "report_version_history",
         "active_report",
+        "compressed_report_context",
+        "report_sections",
         "generated_pdf",
         "mode",
     ]
@@ -40,6 +42,7 @@ class StateManager:
         "refinement_query": "",
         "report_chat_query": "",
         "report_chat_response": "",
+        "report_sections": {},
         "generated_pdf": None,
         "current_step": (
             CurrentStep.START.value

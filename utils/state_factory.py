@@ -71,6 +71,8 @@ class StateFactory:
             # Report workspace state
 
             "active_report": "",
+            
+            "report_sections": {},
 
             "refinement_query": "",
 
@@ -81,6 +83,8 @@ class StateFactory:
             "report_history": [],
 
             "report_version_history": [],
+            
+            "compressed_report_context": "",
 
             # Document generation state
 

@@ -31,6 +31,8 @@ logger = setup_logger(
 class ReportChatAgent:
     """Agent responsible for report Q&A."""
 
+    MAX_FALLBACK_REPORT_LENGTH = 4000
+
     @staticmethod
     @traceable(
         name="report_chat_agent",
@@ -43,6 +45,13 @@ class ReportChatAgent:
 
             logger.info(
                 "Starting report chat workflow",
+            )
+
+            compressed_report_context = (
+                state.get(
+                    "compressed_report_context",
+                    "",
+                )
             )
 
             active_report = (
@@ -59,10 +68,34 @@ class ReportChatAgent:
                 )
             )
 
-            if not active_report:
+            # Prefer compressed workspace memory
+
+            report_context = (
+                compressed_report_context
+            )
+
+            # Fallback for older sessions
+
+            if not report_context.strip():
 
                 logger.warning(
-                    "No active report found",
+                    "Compressed context missing. "
+                    "Using fallback report slice.",
+                )
+
+                report_context = (
+                    active_report[
+                        :ReportChatAgent
+                        .MAX_FALLBACK_REPORT_LENGTH
+                    ]
+                )
+
+            # Validate report availability
+
+            if not report_context.strip():
+
+                logger.warning(
+                    "No report context found",
                 )
 
                 state[
@@ -78,6 +111,8 @@ class ReportChatAgent:
                 )
 
                 return state
+
+            # Validate user question
 
             if not report_chat_query.strip():
 
@@ -98,11 +133,16 @@ class ReportChatAgent:
 
                 return state
 
+            logger.info(
+                "Using compressed workspace "
+                "memory for report chat",
+            )
+
             response = (
                 ReportChatTools
                 .answer_report_question(
                     report=(
-                        active_report
+                        report_context
                     ),
                     question=(
                         report_chat_query

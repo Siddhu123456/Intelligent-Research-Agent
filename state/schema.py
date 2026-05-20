@@ -66,6 +66,8 @@ class ResearchState(
     # Report workspace state
 
     active_report: str
+    
+    report_sections: dict[str, str]
 
     refinement_query: str
 
@@ -80,6 +82,8 @@ class ResearchState(
     report_version_history: list[
         dict
     ]
+    
+    compressed_report_context: str
 
     # Document generation state
 

@@ -16,12 +16,14 @@ class ReportChatTools:
 
     MAX_RESPONSE_LENGTH = 4000
 
+    MAX_CONTEXT_LENGTH = 4000
+
     @staticmethod
     def answer_report_question(
         report: str,
         question: str,
     ) -> str:
-        """Answer questions using report context."""
+        """Answer questions using compressed workspace memory."""
 
         if not report.strip():
 
@@ -45,25 +47,44 @@ class ReportChatTools:
                         "system",
                         (
                             "You are an expert "
-                            "research assistant.\n\n"
+                            "research workspace "
+                            "assistant.\n\n"
+
+                            "You are provided with "
+                            "compressed conversational "
+                            "workspace memory derived "
+                            "from a larger research report.\n\n"
 
                             "Your task is to answer "
-                            "questions strictly using "
-                            "the provided research "
-                            "report.\n\n"
+                            "questions using ONLY the "
+                            "provided workspace memory.\n\n"
 
                             "IMPORTANT RULES:\n"
                             "- answer ONLY from the "
-                            "report context\n"
+                            "workspace memory\n"
                             "- do not hallucinate\n"
                             "- do not invent facts\n"
                             "- if information is missing, "
                             "clearly say so\n"
+                            "- preserve technical accuracy\n"
                             "- provide concise and "
                             "professional answers\n"
-                            "- preserve technical accuracy\n"
-                            "- summarize relevant sections "
-                            "when necessary\n\n"
+                            "- infer relationships only "
+                            "when strongly supported\n"
+                            "- optimize for conversational "
+                            "workspace continuity\n\n"
+
+                            "The workspace memory may be:\n"
+                            "- compressed\n"
+                            "- summarized\n"
+                            "- condensed\n\n"
+
+                            "So prioritize:\n"
+                            "- key findings\n"
+                            "- important concepts\n"
+                            "- technical insights\n"
+                            "- conclusions\n"
+                            "- important terminology\n\n"
 
                             "Return ONLY valid JSON.\n\n"
 
@@ -76,7 +97,8 @@ class ReportChatTools:
                     (
                         "human",
                         (
-                            "Research Report:\n"
+                            "Compressed Workspace "
+                            "Memory:\n"
                             "{report}\n\n"
 
                             "Question:\n"
@@ -94,7 +116,10 @@ class ReportChatTools:
 
         response = chain.invoke(
             {
-                "report": report,
+                "report": report[
+                    :ReportChatTools
+                    .MAX_CONTEXT_LENGTH
+                ],
                 "question": question,
             }
         )
@@ -108,7 +133,8 @@ class ReportChatTools:
                     "answer": (
                         "Unable to generate "
                         "a grounded answer "
-                        "from the report."
+                        "from the workspace "
+                        "memory."
                     ),
                 },
             )
@@ -120,6 +146,17 @@ class ReportChatTools:
                 "",
             )
         )
+
+        # Defensive validation
+
+        if not isinstance(
+            answer,
+            str,
+        ):
+
+            answer = str(
+                answer
+            )
 
         return (
             answer.strip()[

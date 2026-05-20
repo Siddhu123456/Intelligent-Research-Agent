@@ -18,6 +18,14 @@ from tools.report_tools import (
     ReportTools,
 )
 
+from tools.report_compression_tools import (
+    ReportCompressionTools,
+)
+
+from tools.report_section_tools import (
+    ReportSectionTools,
+)
+
 from utils.logger import (
     setup_logger,
 )
@@ -213,7 +221,31 @@ class ReportGenerationAgent:
             state[
                 "active_report"
             ] = report
+            
+            compressed_context = (
+                ReportCompressionTools
+                .compress_report(
+                    report=report,
+                )
+            )
 
+            state[
+                "compressed_report_context"
+            ] = compressed_context
+            
+            # Extract structured report sections
+
+            report_sections = (
+                ReportSectionTools
+                .extract_sections(
+                    report=report,
+                )
+            )
+
+            state[
+                "report_sections"
+            ] = report_sections
+            
             # Store report history
 
             ReportHistoryUtility.add_report(

@@ -16,6 +16,8 @@ os.environ["HF_TOKEN"] = os.getenv(
 @dataclass(frozen=True)
 class Settings:
     groq_api_key: str = os.getenv("GROQ_API_KEY")
+    google_api_key: str = os.getenv("GOOGLE_API_KEY")
+    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY")
     tavily_api_key: str = os.getenv("TAVILY_API_KEY")
     langchain_api_key: str = os.getenv("LANGCHAIN_API_KEY")
     langchain_project: str = os.getenv(

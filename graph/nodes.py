@@ -30,6 +30,10 @@ from agents.report_generation import (
     ReportGenerationAgent,
 )
 
+from agents.report_refinement_agent import (
+    ReportRefinementAgent,
+)
+
 from agents.retrieval import (
     RetrievalAgent,
 )
@@ -104,6 +108,17 @@ class GraphNodes:
 
         return (
             ReportGenerationAgent.run(
+                state,
+            )
+        )
+
+    @staticmethod
+    def report_refinement_node(
+        state: ResearchState,
+    ) -> ResearchState:
+
+        return (
+            ReportRefinementAgent.run(
                 state,
             )
         )
