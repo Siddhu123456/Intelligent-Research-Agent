@@ -79,6 +79,24 @@ class ReportGenerationAgent:
         state: ResearchState,
     ) -> str:
         """Generate fresh report."""
+        
+        metadata = (
+            ReportTools
+            .generate_report_metadata(
+                query=state["query"],
+                findings=(
+                    state["key_findings"]
+                ),
+            )
+        )
+
+        report_title = (
+            metadata["title"]
+        )
+
+        abstract = (
+            metadata["abstract"]
+        )
 
         summary = (
             ReportTools
@@ -95,16 +113,13 @@ class ReportGenerationAgent:
         )
 
         return (
-            ReportTools
-            .format_report(
-                query=(
-                    state["query"]
-                ),
+            ReportTools.format_report(
+                title=report_title,
+                query=state["query"],
+                abstract=abstract,
                 summary=summary,
                 findings=(
-                    state[
-                        "key_findings"
-                    ]
+                    state["key_findings"]
                 ),
                 analysis=(
                     state[
@@ -112,9 +127,7 @@ class ReportGenerationAgent:
                     ]
                 ),
                 citations=(
-                    state[
-                        "citations"
-                    ]
+                    state["citations"]
                 ),
             )
         )

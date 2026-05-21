@@ -19,6 +19,114 @@ class ReportTools:
     """Tools for report generation."""
 
     MAX_SUMMARY_LENGTH = 4000
+    
+    @staticmethod
+    def generate_report_metadata(
+        query: str,
+        findings: list[str],
+    ) -> dict:
+        """
+        Generate professional
+        report title and abstract.
+        """
+
+        llm = (
+            LLMFactory
+            .create_qwen_llm(
+                temperature=0.2,
+            )
+        )
+
+        findings_text = "\n".join(
+            findings[:5]
+        )
+
+        prompt = (
+            ChatPromptTemplate
+            .from_messages(
+                [
+                    (
+                        "system",
+                        (
+                            "You are an expert "
+                            "academic research writer.\n\n"
+
+                            "Generate:\n"
+                            "- a professional "
+                            "research report title\n"
+                            "- a concise abstract\n\n"
+
+                            "IMPORTANT RULES:\n"
+                            "- title should sound "
+                            "professional\n"
+                            "- title should be concise\n"
+                            "- title should reflect "
+                            "the findings\n"
+                            "- abstract should summarize "
+                            "the research\n"
+                            "- avoid hallucinations\n"
+                            "- preserve technical accuracy\n\n"
+
+                            "Return ONLY valid JSON.\n\n"
+
+                            "Format:\n"
+                            "{{\n"
+                            '  "title": "...",\n'
+                            '  "abstract": "..."\n'
+                            "}}"
+                        ),
+                    ),
+                    (
+                        "human",
+                        (
+                            "Research Topic:\n"
+                            "{query}\n\n"
+
+                            "Key Findings:\n"
+                            "{findings}"
+                        ),
+                    ),
+                ]
+            )
+        )
+
+        chain = (
+            prompt
+            | llm
+        )
+
+        response = chain.invoke(
+            {
+                "query": query,
+                "findings": findings_text,
+            }
+        )
+
+        parsed_response = (
+            JSONParser.safe_extract(
+                content=response.content,
+                fallback={
+                    "title": query,
+                    "abstract": findings_text,
+                },
+            )
+        )
+
+        return {
+            "title": (
+                parsed_response.get(
+                    "title",
+                    query,
+                )
+            ),
+
+            "abstract": (
+                parsed_response.get(
+                    "abstract",
+                    findings_text,
+                )
+            ),
+        }
 
     @staticmethod
     def generate_summary(
@@ -124,6 +232,8 @@ class ReportTools:
                 .MAX_SUMMARY_LENGTH
             ]
         )
+        
+    
 
     @staticmethod
     def refine_existing_report(
@@ -238,7 +348,9 @@ class ReportTools:
 
     @staticmethod
     def format_report(
+        title: str,
         query: str,
+        abstract: str,
         summary: str,
         findings: list[str],
         analysis: str,
@@ -253,18 +365,43 @@ class ReportTools:
             ]
         )
 
-        citations_text = "\n\n".join(
-            [
+        seen_urls = set()
+
+        formatted_references = []
+
+        reference_index = 1
+
+        for citation in citations:
+
+            if (
+                not citation.url
+            ):
+
+                continue
+
+            if (
+                citation.url
+                in seen_urls
+            ):
+
+                continue
+
+            seen_urls.add(
+                citation.url
+            )
+
+            formatted_references.append(
                 (
-                    f"Source: "
+                    f"{reference_index}. "
                     f"{citation.source}\n"
-                    f"Claim: "
-                    f"{citation.claim}\n"
-                    f"Document ID: "
-                    f"{citation.doc_id}"
+                    f"URL: {citation.url}"
                 )
-                for citation in citations
-            ]
+            )
+
+            reference_index += 1
+
+        citations_text = "\n\n".join(
+            formatted_references
         )
 
         return f"""
@@ -272,7 +409,20 @@ class ReportTools:
 
 ## Title
 
-{query.title()}
+{title}
+
+## ABSTRACT
+
+{abstract}
+
+## Introduction
+
+This report investigates the topic:
+"{query}"
+
+The purpose of this research is to analyze major developments, technical concepts, findings, practical applications, and emerging trends related to the subject area.
+
+The report synthesizes information retrieved from multiple sources, including web research, contextual knowledge, and relevant analytical insights to provide a structured understanding of the topic.
 
 ## Executive Summary
 
@@ -283,10 +433,7 @@ class ReportTools:
 This report explores the topic:
 "{query}"
 
-The analysis focuses on retrieved
-research findings, technical insights,
-practical implications, and relevant
-evidence gathered from multiple sources.
+The analysis focuses on retrieved research findings, technical insights, practical implications, and relevant evidence gathered from multiple sources.
 
 ## Key Findings
 
@@ -298,19 +445,12 @@ evidence gathered from multiple sources.
 
 ## Conclusion
 
-The research findings provide important
-insights into the topic:
+The research findings provide important insights into the topic:
 "{query}"
 
-The report highlights key technical,
-practical, and conceptual observations
-derived from the analyzed sources.
+The report highlights key technical, practical, and conceptual observations derived from the analyzed sources.
 
-While the retrieved evidence provides
-useful understanding of the topic,
-additional research may further improve
-coverage and depth in rapidly evolving
-areas.
+While the retrieved evidence provides useful understanding of the topic, additional research may further improve coverage and depth in rapidly evolving areas.
 
 ## References
 

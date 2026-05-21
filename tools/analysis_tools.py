@@ -416,6 +416,7 @@ class AnalysisTools:
                     doc_id=document.id,
                     claim=finding,
                     source=document.title,
+                    url=document.url,
                 )
             )
 

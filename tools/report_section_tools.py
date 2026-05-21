@@ -6,6 +6,8 @@ class ReportSectionTools:
 
     DEFAULT_SECTIONS = [
         "Title",
+        "Abstract",
+        "Introduction",
         "Executive Summary",
         "Background & Context",
         "Key Findings",
@@ -13,7 +15,7 @@ class ReportSectionTools:
         "Conclusion",
         "References",
     ]
-
+    
     @staticmethod
     def extract_sections(
         report: str,
@@ -140,6 +142,8 @@ class ReportSectionTools:
 
         preferred_order = [
             "title",
+            "abstract",
+            "introduction",
             "executive_summary",
             "background_and_context",
             "background",

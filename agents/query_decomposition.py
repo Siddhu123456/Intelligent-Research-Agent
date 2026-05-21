@@ -1,6 +1,6 @@
 from langsmith import traceable
 
-from state.constants import CurrentStep
+from state.constants import CurrentStep, Domain
 from state.schema import ResearchState
 from tools.decompose_tools import (
     DecompositionTools,
@@ -31,6 +31,31 @@ class QueryDecompositionAgent:
                     query=state["query"],
                 )
             )
+            
+            # Limit arxiv usage
+
+            arxiv_count = 0
+
+            filtered_queries = []
+
+            for sub_query in sub_queries:
+
+                if (
+                    sub_query.domain
+                    == Domain.ARXIV
+                ):
+
+                    arxiv_count += 1
+ 
+                    if arxiv_count > 3:
+
+                        continue
+
+                filtered_queries.append(
+                    sub_query
+                )
+
+            sub_queries = filtered_queries
 
             is_valid = (
                 DecompositionTools.validate_sub_queries(

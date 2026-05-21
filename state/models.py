@@ -103,7 +103,7 @@ class Document(BaseModel):
 
 
 class Citation(BaseModel):
-    """Represents citation mapping for findings."""
+    """Represents citation mapping."""
 
     model_config = ConfigDict(
         strict=True,
@@ -111,7 +111,8 @@ class Citation(BaseModel):
 
     doc_id: str
 
-    claim: str 
+    claim: str
 
     source: str
-    
+
+    url: str | None = None
