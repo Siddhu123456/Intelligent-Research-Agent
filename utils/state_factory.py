@@ -82,8 +82,6 @@ class StateFactory:
 
             "report_chat_response": "",
 
-            "report_history": [],
-
             "report_version_history": [],
             
             "compressed_report_context": "",

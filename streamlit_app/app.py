@@ -33,12 +33,64 @@ from utils.state_manager import (
     StateManager,
 )
 
+from utils.embedding_factory import (
+    EmbeddingFactory,
+)
+
+
+from utils.reranker_factory import (
+    RerankerFactory,
+)
+
 
 st.set_page_config(
     page_title="AI Research Workspace",
     layout="wide",
 )
 
+# Warmup embedding model
+# during application startup
+# AI MODEL WARMUP
+
+if (
+    "models_warmed_up"
+    not in st.session_state
+):
+
+    with st.spinner(
+        "Loading AI models...",
+    ):
+
+        # Embedding warmup
+
+        embedding_model = (
+            EmbeddingFactory
+            .get_embeddings()
+        )
+
+        embedding_model.embed_query(
+            "warmup"
+        )
+
+        # Reranker warmup
+
+        reranker = (
+            RerankerFactory
+            .get_reranker()
+        )
+
+        reranker.predict(
+            [
+                (
+                    "warmup query",
+                    "warmup document",
+                )
+            ]
+        )
+
+        st.session_state[
+            "models_warmed_up"
+        ] = True
 
 # Session initialization
 
@@ -135,13 +187,13 @@ with st.sidebar:
     if (
         st.session_state.state
         and st.session_state.state.get(
-            "report_history",
+            "report_version_history",
         )
     ):
 
         report_history = (
             st.session_state.state[
-                "report_history"
+                "report_version_history"
             ]
         )
 
@@ -154,13 +206,16 @@ with st.sidebar:
 
                 st.markdown(
                     f"### {index}. "
-                    f"{item['query']}"
-                )
+                    f"{item.get("description", item.get("query", "Unknown"))}"
+                    )
 
                 st.caption(
-                    item["timestamp"]
+                    item.get(
+                        "timestamp",
+                        "No timestamp",
+                    )
                 )
-
+                
                 st.divider()
 
     else:
@@ -629,28 +684,31 @@ if (
                 start=1,
             ):
 
+                version_description = (
+                    version.get(
+                        "description",
+                        version.get(
+                            "mode",
+                            "unknown",
+                        ),
+                    )
+                )
+
                 with st.expander(
                     (
                         f"Version {index} "
-                        f"({version.get('mode', 'unknown')})"
+                        f"- {version_description}"
                     )
                 ):
-
                     if version.get(
-                        "refinement_query",
+                        "updated_section",
                     ):
 
-                        st.markdown(
+                        st.caption(
                             (
-                                "### Refinement "
-                                "Instruction"
+                                "Updated Section: "
+                                f"{version['updated_section']}"
                             )
-                        )
-
-                        st.write(
-                            version[
-                                "refinement_query"
-                            ]
                         )
 
                     st.markdown(

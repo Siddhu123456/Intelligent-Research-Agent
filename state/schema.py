@@ -77,10 +77,6 @@ class ResearchState(
 
     report_chat_response: str
 
-    report_history: list[
-        dict
-    ]
-
     report_version_history: list[
         dict
     ]
