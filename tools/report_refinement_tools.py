@@ -14,7 +14,11 @@ from utils.llm_factory import (
 class ReportRefinementTools:
     """Tools for section-aware report refinement."""
 
-    MAX_SECTION_LENGTH = 6000
+    MAX_SECTION_LENGTH = 4000
+
+    MAX_REFINEMENT_QUERY = 1000
+
+    MAX_SECTION_CONTEXT = 2500
 
     @staticmethod
     def classify_refinement_intent(
@@ -22,12 +26,7 @@ class ReportRefinementTools:
         existing_sections: list[str],
     ) -> dict:
         """
-        Detect refinement intent.
-
-        Determines:
-        - add new section
-        - modify existing section
-        - target section
+        Detect refinement intent safely.
         """
 
         llm = (
@@ -48,39 +47,38 @@ class ReportRefinementTools:
                             "document refinement "
                             "classifier.\n\n"
 
-                            "Your task is to classify "
-                            "a report refinement request.\n\n"
-
-                            "Determine:\n"
-                            "- whether user wants to "
-                            "MODIFY an existing section\n"
-                            "- OR ADD a new section\n"
-                            "- identify target section\n\n"
+                            "Determine whether the "
+                            "user wants to:\n"
+                            "- modify existing section\n"
+                            "- add new section\n\n"
 
                             "IMPORTANT RULES:\n"
-                            "- prefer MODIFY if user "
-                            "references existing content\n"
-                            "- prefer ADD if user asks "
-                            "for a completely new topic\n"
-                            "- target_section must be "
-                            "normalized snake_case\n"
-                            "- preserve semantic meaning\n"
+
+                            "- if user asks to ADD, "
+                            "CREATE, INSERT, INCLUDE "
+                            "or introduce a NEW topic "
+                            "not already present, "
+                            "prefer add_section\n\n"
+
+                            "- for modify_section, "
+                            "target_section MUST "
+                            "exactly match one of "
+                            "the available sections\n\n"
+
+                            "- NEVER invent section names\n"
+
+                            "- use snake_case only\n"
+
                             "- return ONLY valid JSON\n\n"
 
                             "Available Sections:\n"
                             "{sections}\n\n"
 
-                            "Output Format:\n"
+                            "Format:\n"
                             "{{\n"
                             '  "intent": "modify_section",\n'
-                            '  "target_section": "analysis"\n'
-                            "}}\n\n"
-
-                            "OR\n\n"
-
-                            "{{\n"
-                            '  "intent": "add_section",\n'
-                            '  "target_section": "future_trends"\n'
+                            '  "target_section": '
+                            '"analysis_and_insights"\n'
                             "}}"
                         ),
                     ),
@@ -102,13 +100,15 @@ class ReportRefinementTools:
 
         response = chain.invoke(
             {
-                "query": (
-                    refinement_query
-                ),
-                "sections": (
-                    ", ".join(
-                        existing_sections
-                    )
+                "query":
+                refinement_query[
+                    :ReportRefinementTools
+                    .MAX_REFINEMENT_QUERY
+                ],
+
+                "sections":
+                ", ".join(
+                    existing_sections
                 ),
             }
         )
@@ -121,11 +121,40 @@ class ReportRefinementTools:
                 fallback={
                     "intent":
                     "modify_section",
+
                     "target_section":
-                    "analysis",
+                    "analysis_and_insights",
                 },
             )
         )
+
+        target_section = (
+            parsed_response.get(
+                "target_section",
+                "",
+            )
+        )
+
+        intent = (
+            parsed_response.get(
+                "intent",
+                "modify_section",
+            )
+        )
+
+        # Safety correction
+
+        if (
+            intent == "modify_section"
+            and target_section
+            not in existing_sections
+        ):
+
+            parsed_response[
+                "target_section"
+            ] = (
+                "analysis_and_insights"
+            )
 
         return parsed_response
 
@@ -136,8 +165,22 @@ class ReportRefinementTools:
         refinement_query: str,
     ) -> str:
         """
-        Refine an existing section only.
+        Refine ONLY one section.
         """
+
+        section_content = (
+            section_content[
+                :ReportRefinementTools
+                .MAX_SECTION_CONTEXT
+            ]
+        )
+
+        refinement_query = (
+            refinement_query[
+                :ReportRefinementTools
+                .MAX_REFINEMENT_QUERY
+            ]
+        )
 
         llm = (
             LLMFactory
@@ -156,19 +199,16 @@ class ReportRefinementTools:
                             "You are an expert "
                             "research report editor.\n\n"
 
-                            "Your task is to refine "
-                            "ONLY the provided report "
-                            "section.\n\n"
+                            "Refine ONLY the provided "
+                            "report section.\n\n"
 
                             "IMPORTANT RULES:\n"
-                            "- preserve existing meaning\n"
-                            "- preserve factual accuracy\n"
-                            "- improve clarity and depth\n"
-                            "- integrate refinement naturally\n"
-                            "- maintain professional tone\n"
+                            "- preserve meaning\n"
+                            "- preserve accuracy\n"
+                            "- improve clarity\n"
                             "- avoid hallucinations\n"
                             "- return ONLY updated section\n"
-                            "- do NOT generate entire report\n\n"
+                            "- do NOT generate full report\n\n"
 
                             "Return ONLY valid JSON.\n\n"
 
@@ -204,8 +244,10 @@ class ReportRefinementTools:
             {
                 "section_name":
                 section_name,
+
                 "section_content":
                 section_content,
+
                 "refinement_query":
                 refinement_query,
             }
@@ -252,10 +294,18 @@ class ReportRefinementTools:
         section_name: str,
         report_topic: str,
         refinement_query: str,
+        existing_sections: list[str],
     ) -> str:
         """
-        Generate entirely new section.
+        Generate lightweight new section.
         """
+
+        refinement_query = (
+            refinement_query[
+                :ReportRefinementTools
+                .MAX_REFINEMENT_QUERY
+            ]
+        )
 
         llm = (
             LLMFactory
@@ -274,20 +324,16 @@ class ReportRefinementTools:
                             "You are an expert "
                             "research report writer.\n\n"
 
-                            "Generate a NEW report "
-                            "section.\n\n"
+                            "Generate ONLY the requested "
+                            "new report section.\n\n"
 
                             "IMPORTANT RULES:\n"
-                            "- generate only the section\n"
-                            "- preserve professional tone\n"
-                            "- maintain factual accuracy\n"
-                            "- integrate naturally with "
-                            "research reports\n"
+                            "- generate section content only\n"
+                            "- no markdown titles\n"
+                            "- concise but informative\n"
+                            "- professional tone\n"
                             "- avoid hallucinations\n"
-                            "- avoid markdown titles\n"
-                            "- return ONLY section content\n\n"
-
-                            "Return ONLY valid JSON.\n\n"
+                            "- return ONLY valid JSON\n\n"
 
                             "Format:\n"
                             "{{\n"
@@ -300,6 +346,9 @@ class ReportRefinementTools:
                         (
                             "Report Topic:\n"
                             "{topic}\n\n"
+
+                            "Existing Sections:\n"
+                            "{existing_sections}\n\n"
 
                             "New Section Name:\n"
                             "{section_name}\n\n"
@@ -321,8 +370,15 @@ class ReportRefinementTools:
             {
                 "topic":
                 report_topic,
+
+                "existing_sections":
+                ", ".join(
+                    existing_sections
+                ),
+
                 "section_name":
                 section_name,
+
                 "refinement_query":
                 refinement_query,
             }
@@ -351,7 +407,7 @@ class ReportRefinementTools:
                 "",
             )
         )
-        
+
         if not new_section:
 
             new_section = (
@@ -375,3 +431,83 @@ class ReportRefinementTools:
                 .MAX_SECTION_LENGTH
             ]
         )
+
+    @staticmethod
+    def determine_section_placement(
+        new_section: str,
+        existing_sections: list[str],
+    ) -> dict:
+        """
+        Determine intelligent placement.
+        """
+
+        llm = (
+            LLMFactory
+            .create_qwen_llm(
+                temperature=0.1,
+            )
+        )
+
+        prompt = (
+            ChatPromptTemplate
+            .from_messages(
+                [
+                    (
+                        "system",
+                        (
+                            "Determine where a NEW "
+                            "section should be placed "
+                            "inside a research report.\n\n"
+
+                            "Return ONLY valid JSON.\n\n"
+
+                            "Format:\n"
+                            "{{\n"
+                            '  "insert_before": "conclusion"\n'
+                            "}}"
+                        ),
+                    ),
+                    (
+                        "human",
+                        (
+                            "Existing Sections:\n"
+                            "{existing_sections}\n\n"
+
+                            "New Section:\n"
+                            "{new_section}"
+                        ),
+                    ),
+                ]
+            )
+        )
+
+        chain = (
+            prompt
+            | llm
+        )
+
+        response = chain.invoke(
+            {
+                "new_section":
+                new_section,
+
+                "existing_sections":
+                ", ".join(
+                    existing_sections
+                ),
+            }
+        )
+
+        parsed_response = (
+            JSONParser.safe_extract(
+                content=(
+                    response.content
+                ),
+                fallback={
+                    "insert_before":
+                    "conclusion",
+                },
+            )
+        )
+
+        return parsed_response

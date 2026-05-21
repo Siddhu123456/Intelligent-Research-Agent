@@ -24,6 +24,7 @@ class StateManager:
         "active_report",
         "compressed_report_context",
         "report_sections",
+        "report_section_order",
         "generated_pdf",
         "mode",
     ]
@@ -43,6 +44,7 @@ class StateManager:
         "report_chat_query": "",
         "report_chat_response": "",
         "report_sections": {},
+        "report_section_order": [],
         "generated_pdf": None,
         "current_step": (
             CurrentStep.START.value

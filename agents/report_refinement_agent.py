@@ -49,6 +49,8 @@ class ReportRefinementAgent:
         reconstructed_report: str,
         report_sections: dict[str, str],
         refinement_query: str,
+        report_section_order: list[str],
+        updated_section_name: str,
     ) -> None:
         """
         Update workspace state after refinement.
@@ -66,13 +68,44 @@ class ReportRefinementAgent:
             "report_sections"
         ] = report_sections
 
-        # Rebuild compressed workspace memory
+        state[
+            "report_section_order"
+        ] = report_section_order
+
+        # Incrementally update
+        # compressed workspace memory
+
+        updated_section_content = (
+            report_sections.get(
+                updated_section_name,
+                "",
+            )
+        )
+
+        previous_context = (
+            state.get(
+                "compressed_report_context",
+                "",
+            )
+        )
 
         compressed_context = (
             ReportCompressionTools
-            .compress_report(
-                report=(
-                    reconstructed_report
+            .update_compressed_context(
+                previous_context=(
+                    previous_context
+                ),
+
+                updated_section_name=(
+                    updated_section_name
+                ),
+
+                updated_section_content=(
+                    updated_section_content
+                ),
+
+                refinement_query=(
+                    refinement_query
                 ),
             )
         )
@@ -102,18 +135,21 @@ class ReportRefinementAgent:
                 "query": (
                     state["query"]
                 ),
+
                 "report": (
                     reconstructed_report
                 ),
+
                 "mode": (
                     "REPORT_REFINEMENT"
                 ),
+
                 "refinement_query": (
                     refinement_query
                 ),
             }
         )
-
+        
     @staticmethod
     @traceable(
         name="report_refinement_agent",
@@ -147,6 +183,13 @@ class ReportRefinementAgent:
                 state.get(
                     "report_sections",
                     {},
+                )
+            )
+            
+            report_section_order = (
+                state.get(
+                    "report_section_order",
+                    [],
                 )
             )
 
@@ -189,20 +232,44 @@ class ReportRefinementAgent:
                 return state
 
             # Extract sections if missing
+            # Use persisted workspace sections
 
-            if not report_sections:
+            if (
+                not report_sections
+                or not report_section_order
+            ):
 
                 logger.info(
-                    "Extracting report sections",
+                    "Extracting initial "
+                    "report sections",
                 )
 
-                report_sections = (
+                extracted_data = (
                     ReportSectionTools
                     .extract_sections(
                         report=(
                             active_report
                         ),
                     )
+                )
+
+                report_sections = (
+                    extracted_data[
+                        "sections"
+                    ]
+                )
+
+                report_section_order = (
+                    extracted_data[
+                        "section_order"
+                    ]
+                )
+
+            else:
+
+                logger.info(
+                    "Using persisted "
+                    "workspace sections",
                 )
 
             # Intent classification
@@ -314,11 +381,17 @@ class ReportRefinementAgent:
                         section_name=(
                             target_section
                         ),
+
                         report_topic=(
                             state["query"]
                         ),
+
                         refinement_query=(
                             refinement_query
+                        ),
+
+                        existing_sections=(
+                            report_section_order
                         ),
                     )
                 )
@@ -333,6 +406,72 @@ class ReportRefinementAgent:
                     target_section
                 ] = new_section
                 
+                placement_decision = (
+                    ReportRefinementTools
+                    .determine_section_placement(
+                        new_section=(
+                            target_section
+                        ),
+                        existing_sections=(
+                            report_section_order
+                        ),
+                    )
+                )
+                
+                insert_before = (
+                    placement_decision.get(
+                        "insert_before"
+                    )
+                )
+
+                insert_after = (
+                    placement_decision.get(
+                        "insert_after"
+                    )
+                )
+
+                if (
+                    insert_before
+                    and insert_before
+                    in report_section_order
+                ):
+
+                    index = (
+                        report_section_order
+                        .index(
+                            insert_before
+                        )
+                    )
+
+                    report_section_order.insert(
+                        index,
+                        target_section,
+                    )
+
+                elif (
+                    insert_after
+                    and insert_after
+                    in report_section_order
+                ):
+
+                    index = (
+                        report_section_order
+                        .index(
+                            insert_after
+                        )
+                    )
+
+                    report_section_order.insert(
+                        index + 1,
+                        target_section,
+                    )
+
+                else:
+
+                    report_section_order.append(
+                        target_section
+                    )
+                                                
                 print(
                     "\n===== UPDATED REPORT SECTIONS ====="
                 )
@@ -352,6 +491,9 @@ class ReportRefinementAgent:
                     sections=(
                         report_sections
                     ),
+                    section_order=(
+                        report_section_order
+                    ),
                 )
             )
 
@@ -361,18 +503,29 @@ class ReportRefinementAgent:
                 ReportRefinementAgent
                 ._update_workspace_state(
                     state=state,
+
                     reconstructed_report=(
                         reconstructed_report
                     ),
+
                     report_sections=(
                         report_sections
                     ),
+
+                    report_section_order=(
+                        report_section_order
+                    ),
+
                     refinement_query=(
                         refinement_query
                     ),
+
+                    updated_section_name=(
+                        target_section
+                    ),
                 )
             )
-
+            
             # Update memory
 
             MemoryManager.update_memory(

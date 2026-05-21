@@ -68,6 +68,8 @@ class ResearchState(
     active_report: str
     
     report_sections: dict[str, str]
+    
+    report_section_order: list[str]
 
     refinement_query: str
 

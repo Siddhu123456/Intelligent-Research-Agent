@@ -17,17 +17,22 @@ class ReportSectionTools:
     @staticmethod
     def extract_sections(
         report: str,
-    ) -> dict[str, str]:
+    ) -> dict:
         """
         Extract structured sections
-        from markdown-style report.
+        and preserve original order.
         """
 
         if not report.strip():
 
-            return {}
+            return {
+                "sections": {},
+                "section_order": [],
+            }
 
         sections = {}
+
+        section_order = []
 
         pattern = (
             r"##\s+(.*?)\n(.*?)(?=\n##|\Z)"
@@ -58,15 +63,25 @@ class ReportSectionTools:
                 .strip()
             )
 
-        return sections
+            section_order.append(
+                cleaned_name
+            )
+
+        return {
+            "sections": sections,
+            "section_order": (
+                section_order
+            ),
+        }
 
     @staticmethod
     def reconstruct_report(
         sections: dict[str, str],
+        section_order: list[str],
     ) -> str:
         """
-        Rebuild full report from
-        structured sections.
+        Rebuild full report using
+        persistent section order.
         """
 
         if not sections:
@@ -77,16 +92,16 @@ class ReportSectionTools:
             "# Research Report\n"
         ]
 
-        section_order = (
-            ReportSectionTools
-            .get_section_order(
-                sections,
-            )
-        )
-
         for section_name in (
             section_order
         ):
+
+            if (
+                section_name
+                not in sections
+            ):
+
+                continue
 
             content = sections.get(
                 section_name,
@@ -120,21 +135,22 @@ class ReportSectionTools:
         sections: dict[str, str],
     ) -> list[str]:
         """
-        Determine intelligent
-        section ordering.
+        Determine fallback section ordering.
         """
 
         preferred_order = [
             "title",
             "executive_summary",
-            "background_&_context",
+            "background_and_context",
             "background",
             "key_findings",
-            "analysis_&_insights",
+            "analysis_and_insights",
             "analysis",
             "future_trends",
             "security_considerations",
             "limitations",
+            "deployment_strategy",
+            "recommendations",
             "conclusion",
             "references",
         ]
@@ -174,14 +190,14 @@ class ReportSectionTools:
         section_name: str,
     ) -> bool:
         """
-        Check whether a section exists.
+        Check whether section exists.
         """
 
         normalized_name = (
-            section_name
-            .strip()
-            .lower()
-            .replace(" ", "_")
+            ReportSectionTools
+            .normalize_section_name(
+                section_name
+            )
         )
 
         return (

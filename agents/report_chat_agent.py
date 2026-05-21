@@ -137,6 +137,17 @@ class ReportChatAgent:
                 "Using compressed workspace "
                 "memory for report chat",
             )
+            
+            print(
+                "\n===== COMPRESSED REPORT CONTEXT =====\n"
+            )
+
+            print(
+                state.get(
+                    "compressed_report_context",
+                    ""
+                )
+            )
 
             response = (
                 ReportChatTools

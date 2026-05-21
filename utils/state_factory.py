@@ -73,6 +73,8 @@ class StateFactory:
             "active_report": "",
             
             "report_sections": {},
+            
+            "report_section_order": [],
 
             "refinement_query": "",
 
