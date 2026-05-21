@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from langsmith import (
     traceable,
 )
@@ -28,10 +30,6 @@ from tools.report_section_tools import (
 
 from utils.logger import (
     setup_logger,
-)
-
-from utils.report_history import (
-    ReportHistoryUtility,
 )
 
 
@@ -114,18 +112,6 @@ class ReportRefinementAgent:
             "compressed_report_context"
         ] = compressed_context
 
-        # Store report history
-
-        ReportHistoryUtility.add_report(
-            state=state,
-            query=(
-                state["query"]
-            ),
-            report=(
-                reconstructed_report
-            ),
-        )
-
         # Store version history
 
         state[
@@ -144,8 +130,15 @@ class ReportRefinementAgent:
                     "REPORT_REFINEMENT"
                 ),
 
-                "refinement_query": (
+                "description": (
                     refinement_query
+                ),
+
+                "updated_section": (
+                    updated_section_name
+                ),
+                "timestamp": str(
+                    datetime.now()
                 ),
             }
         )
@@ -303,7 +296,7 @@ class ReportRefinementAgent:
             target_section = (
                 refinement_intent.get(
                     "target_section",
-                    "analysis",
+                    "analysis_and_insights",
                 )
             )
 
@@ -402,75 +395,100 @@ class ReportRefinementAgent:
 
                 print(new_section)
 
-                report_sections[
-                    target_section
-                ] = new_section
-                
-                placement_decision = (
-                    ReportRefinementTools
-                    .determine_section_placement(
-                        new_section=(
-                            target_section
-                        ),
-                        existing_sections=(
-                            report_section_order
-                        ),
-                    )
-                )
-                
-                insert_before = (
-                    placement_decision.get(
-                        "insert_before"
-                    )
-                )
-
-                insert_after = (
-                    placement_decision.get(
-                        "insert_after"
-                    )
-                )
+                # Replace existing section
+                # instead of duplicating.
 
                 if (
-                    insert_before
-                    and insert_before
-                    in report_section_order
+                    target_section
+                    in report_sections
                 ):
 
-                    index = (
-                        report_section_order
-                        .index(
-                            insert_before
-                        )
+                    logger.info(
+                        "Replacing existing "
+                        "section content",
                     )
 
-                    report_section_order.insert(
-                        index,
-                        target_section,
-                    )
-
-                elif (
-                    insert_after
-                    and insert_after
-                    in report_section_order
-                ):
-
-                    index = (
-                        report_section_order
-                        .index(
-                            insert_after
-                        )
-                    )
-
-                    report_section_order.insert(
-                        index + 1,
-                        target_section,
-                    )
+                    report_sections[
+                        target_section
+                    ] = new_section
 
                 else:
 
-                    report_section_order.append(
-                        target_section
+                    logger.info(
+                        "Adding completely "
+                        "new section",
                     )
+
+                    report_sections[
+                        target_section
+                    ] = new_section
+
+                    placement_decision = (
+                        ReportRefinementTools
+                        .determine_section_placement(
+                            new_section=(
+                                target_section
+                            ),
+
+                            existing_sections=(
+                                report_section_order
+                            ),
+                        )
+                    )
+
+                    insert_before = (
+                        placement_decision.get(
+                            "insert_before"
+                        )
+                    )
+
+                    insert_after = (
+                        placement_decision.get(
+                            "insert_after"
+                        )
+                    )
+
+                    if (
+                        insert_before
+                        and insert_before
+                        in report_section_order
+                    ):
+
+                        index = (
+                            report_section_order
+                            .index(
+                                insert_before
+                            )
+                        )
+
+                        report_section_order.insert(
+                            index,
+                            target_section,
+                        )
+
+                    elif (
+                        insert_after
+                        and insert_after
+                        in report_section_order
+                    ):
+
+                        index = (
+                            report_section_order
+                            .index(
+                                insert_after
+                            )
+                        )
+
+                        report_section_order.insert(
+                            index + 1,
+                            target_section,
+                        )
+
+                    else:
+
+                        report_section_order.append(
+                            target_section
+                        )
                                                 
                 print(
                     "\n===== UPDATED REPORT SECTIONS ====="
@@ -534,7 +552,8 @@ class ReportRefinementAgent:
                     refinement_query
                 ),
                 assistant_response=(
-                    reconstructed_report
+                    f"Updated section: "
+                    f"{target_section}"
                 ),
             )
 

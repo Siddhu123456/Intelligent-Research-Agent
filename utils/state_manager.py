@@ -19,7 +19,6 @@ class StateManager:
         "messages",
         "conversation_turn",
         "conversation_summary",
-        "report_history",
         "report_version_history",
         "active_report",
         "compressed_report_context",

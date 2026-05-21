@@ -1,6 +1,7 @@
 from langsmith import (
     traceable,
 )
+from datetime import datetime
 
 from memory.memory_manager import (
     MemoryManager,
@@ -30,10 +31,6 @@ from utils.logger import (
     setup_logger,
 )
 
-from utils.report_history import (
-    ReportHistoryUtility,
-)
-
 
 logger = setup_logger(
     __name__,
@@ -61,14 +58,18 @@ class ReportGenerationAgent:
                 "query": (
                     state["query"]
                 ),
+
                 "report": report,
+
                 "mode": (
-                    state["mode"]
+                    "REPORT_GENERATION"
                 ),
-                "refinement_query": (
-                    state[
-                        "refinement_query"
-                    ]
+
+                "description": (
+                    "Initial report generation"
+                ),
+                "timestamp": str(
+                    datetime.now()
                 ),
             }
         )
@@ -235,7 +236,7 @@ class ReportGenerationAgent:
             
             # Extract structured report sections
 
-            report_sections = (
+            extracted_data = (
                 ReportSectionTools
                 .extract_sections(
                     report=report,
@@ -244,18 +245,20 @@ class ReportGenerationAgent:
 
             state[
                 "report_sections"
-            ] = report_sections
-            
-            # Store report history
-
-            ReportHistoryUtility.add_report(
-                state=state,
-                query=(
-                    state["query"]
-                ),
-                report=report,
+            ] = (
+                extracted_data[
+                    "sections"
+                ]
             )
 
+            state[
+                "report_section_order"
+            ] = (
+                extracted_data[
+                    "section_order"
+                ]
+            )
+            
             # Store report versions
 
             (

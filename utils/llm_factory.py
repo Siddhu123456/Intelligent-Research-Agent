@@ -3,6 +3,9 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import (
     ChatOpenAI,
 )
+from langchain_community.chat_models import (
+    ChatOllama,
+)
 
 from config.settings import settings
 
@@ -21,22 +24,13 @@ class LLMFactory:
         )
 
     @staticmethod
-    def create_openrouter_qwen_next(
+    def create_ollama_llm(
         temperature: float = 0.2,
     ):
 
-        return ChatOpenAI(
-            model=(
-                "nvidia/"
-                "nemotron-3-nano-omni-30b-a3b-reasoning:free"
-            ),
+        return ChatOllama(
+            model="gemma:2b",
             temperature=temperature,
-            api_key=(
-                settings.openrouter_api_key
-            ),
-            base_url=(
-                "https://openrouter.ai/api/v1"
-            ),
-        )      
+        )   
     
     
