@@ -43,120 +43,114 @@ class DecompositionTools:
         )
 
         prompt = (
-            ChatPromptTemplate
-            .from_messages(
-                [
-                    (
-                        "system",
-                        (
-                            "You are an advanced "
-                            "research query "
-                            "decomposition agent.\n\n"
+                    ChatPromptTemplate
+                    .from_messages(
+                        [
+                            (
+                                "system",
+                                (
+                                    "You are an advanced "
+                                    "research query "
+                                    "decomposition agent.\n\n"
 
-                            "Your task:\n"
-                            "Break the research query "
-                            "into high-quality retrieval "
-                            "sub-queries optimized for "
-                            "multi-source research.\n\n"
+                                    "Your task:\n"
+                                    "Break the research query "
+                                    "into high-quality retrieval "
+                                    "sub-queries optimized for "
+                                    "multi-source research.\n\n"
 
-                            "PRIMARY GOAL:\n"
-                            "Generate diverse retrieval "
-                            "coverage across multiple "
-                            "knowledge sources.\n\n"
+                                    "PRIMARY GOAL:\n"
+                                    "Generate diverse retrieval "
+                                    "coverage across multiple "
+                                    "knowledge sources.\n\n"
 
-                            "RULES:\n"
-                            "- generate between 2 and 5 "
-                            "sub-queries\n"
-                            "- each query must target "
-                            "a different research aspect\n"
-                            "- keep each query concise "
-                            "and searchable\n"
-                            "- prefer keyword-rich "
-                            "search phrases\n"
-                            "- avoid repeating the "
-                            "same wording\n"
-                            "- avoid generic queries\n"
-                            "- avoid conversational "
-                            "phrasing\n"
-                            "- do not answer the query\n\n"
+                                    "RULES:\n"
+                                    "- generate between 2 and 5 "
+                                    "sub-queries\n"
+                                    "- each query must target "
+                                    "a different research aspect\n"
+                                    "- keep each query concise "
+                                    "and searchable\n"
+                                    "- prefer keyword-rich "
+                                    "search phrases\n"
+                                    "- avoid repeating the "
+                                    "same wording\n"
+                                    "- avoid generic queries\n"
+                                    "- avoid conversational "
+                                    "phrasing\n"
+                                    "- do not answer the query\n\n"
 
-                            "DOMAIN BALANCING:\n"
-                            "- ALWAYS include at least one WEB query\n"
-                            "- web should be the primary retrieval source\n"
-                            "- use arxiv sparingly\n"
-                            "- use arxiv only for highly academic topics\n"
-                            "- prefer WEB over arxiv\n"
-                            "- arxiv should usually appear"
-                            " at most once\n"
-                            "- avoid domain bias\n"
-                            "- select domains based on "
-                            "query intent\n"
-                            "- distribute queries across "
-                            "multiple domains whenever "
-                            "possible\n\n"
+                                    "DOMAIN BALANCING:\n"
+                                    "- ALWAYS include at least one WEB query\n"
+                                    "- web should be the primary retrieval source\n"
+                                    "- prefer WEB for practical "
+                                    "and modern information\n"
+                                    "- use wikipedia for "
+                                    "foundational understanding\n"
+                                    "- avoid domain bias\n"
+                                    "- select domains based on "
+                                    "query intent\n"
+                                    "- distribute queries across "
+                                    "multiple domains whenever "
+                                    "possible\n\n"
 
-                            "AVAILABLE DOMAINS:\n\n"
+                                    "AVAILABLE DOMAINS:\n\n"
 
-                            "1. web\n"
-                            "- tutorials\n"
-                            "- industry articles\n"
-                            "- practical applications\n"
-                            "- news\n"
-                            "- implementation guides\n"
-                            "- modern trends\n"
-                            "- real-world examples\n\n"
+                                    "1. web\n"
+                                    "- tutorials\n"
+                                    "- industry articles\n"
+                                    "- practical applications\n"
+                                    "- news\n"
+                                    "- implementation guides\n"
+                                    "- modern trends\n"
+                                    "- real-world examples\n"
+                                    "- case studies\n"
+                                    "- tools and frameworks\n\n"
 
-                            "2. wikipedia\n"
-                            "- concepts\n"
-                            "- definitions\n"
-                            "- historical background\n"
-                            "- foundational understanding\n"
-                            "- terminology\n\n"
+                                    "2. wikipedia\n"
+                                    "- concepts\n"
+                                    "- definitions\n"
+                                    "- historical background\n"
+                                    "- foundational understanding\n"
+                                    "- terminology\n"
+                                    "- theoretical explanations\n\n"
 
-                            "3. arxiv\n"
-                            "- academic research\n"
-                            "- scientific papers\n"
-                            "- technical methodologies\n"
-                            "- cutting-edge research\n"
-                            "- experimental work\n\n"
+                                    "IMPORTANT:\n"
+                                    "- most research queries "
+                                    "should primarily use "
+                                    "web retrieval\n"
+                                    "- wikipedia should support "
+                                    "conceptual understanding\n"
+                                    "- prefer balanced retrieval "
+                                    "coverage\n"
+                                    "- avoid generating overly "
+                                    "broad retrieval queries\n\n"
 
-                            "IMPORTANT:\n"
-                            "- arxiv should ONLY be used "
-                            "when academic or scientific "
-                            "research is clearly valuable\n"
-                            "- not every query requires "
-                            "arxiv\n"
-                            "- most general research "
-                            "queries should primarily use "
-                            "web and wikipedia\n"
-                            "- prefer balanced retrieval "
-                            "coverage\n\n"
+                                    "GOOD EXAMPLE:\n\n"
 
-                            "GOOD EXAMPLE:\n\n"
+                                    "Query:\n"
+                                    "'Quantum computing applications'\n\n"
 
-                            "Query:\n"
-                            "'Quantum computing applications'\n\n"
+                                    "Balanced Output:\n"
+                                    "- quantum computing definition "
+                                    "(wikipedia)\n"
+                                    "- quantum computing use cases "
+                                    "(web)\n"
+                                    "- industry quantum adoption "
+                                    "(web)\n"
+                                    "- quantum computing history "
+                                    "(wikipedia)\n\n"
 
-                            "Balanced Output:\n"
-                            "- quantum computing definition "
-                            "(wikipedia)\n"
-                            "- quantum computing use cases "
-                            "(web)\n"
-                            "- quantum cryptography research "
-                            "(arxiv)\n"
-                            "- industry quantum adoption "
-                            "(web)\n\n"
-
-                            "Return structured output only."
-                        ),
-                    ),
-                    (
-                        "human",
-                        "{query}",
-                    ),
-                ]
-            )
-        )
+                                    "Return structured output only."
+                                ),
+                            ),
+                            (
+                                "human",
+                                "{query}",
+                            ),
+                        ]
+                    )
+                )
 
         chain = (
             prompt
