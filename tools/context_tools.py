@@ -122,6 +122,17 @@ Output:
             )
         )
 
+        # Defensive normalization
+
+        if not isinstance(
+            rewritten_query,
+            str,
+        ):
+
+            rewritten_query = str(
+                rewritten_query
+            )
+
         return (
             rewritten_query.strip()
         )
@@ -184,6 +195,17 @@ Format:
                 query,
             )
         )
+
+        # Defensive normalization
+
+        if not isinstance(
+            refined_query,
+            str,
+        ):
+
+            refined_query = str(
+                refined_query
+            )
 
         return (
             refined_query.strip()

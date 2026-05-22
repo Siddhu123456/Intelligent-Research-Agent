@@ -58,6 +58,17 @@ class ReportSectionTools:
                 )
             )
 
+            # Defensive normalization
+
+            if not isinstance(
+                section_content,
+                str,
+            ):
+
+                section_content = str(
+                    section_content
+                )
+
             sections[
                 cleaned_name
             ] = (

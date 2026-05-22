@@ -112,19 +112,42 @@ class ReportTools:
             )
         )
 
-        return {
-            "title": (
-                parsed_response.get(
-                    "title",
-                    query,
-                )
-            ),
+        title = (
+            parsed_response.get(
+                "title",
+                query,
+            )
+        )
 
+        abstract = (
+            parsed_response.get(
+                "abstract",
+                findings_text,
+            )
+        )
+
+        # Defensive normalization
+
+        if not isinstance(
+            title,
+            str,
+        ):
+
+            title = str(title)
+
+        if not isinstance(
+            abstract,
+            str,
+        ):
+
+            abstract = str(
+                abstract
+            )
+
+        return {
+            "title": title.strip(),
             "abstract": (
-                parsed_response.get(
-                    "abstract",
-                    findings_text,
-                )
+                abstract.strip()
             ),
         }
 
@@ -225,6 +248,17 @@ class ReportTools:
                 findings_text,
             )
         )
+
+        # Defensive normalization
+
+        if not isinstance(
+            summary,
+            str,
+        ):
+
+            summary = str(
+                summary
+            )
 
         return (
             summary.strip()[

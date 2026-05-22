@@ -136,12 +136,32 @@ def run_workflow(state, label: str = "Running workflow…"):
         return final_state
 
     with st.status(label, expanded=True) as status:
+
         loop = asyncio.new_event_loop()
+
         try:
-            result = loop.run_until_complete(_stream())
+
+            result = loop.run_until_complete(
+                _stream()
+            )
+
+        except Exception as error:
+
+            st.error(
+                f"Workflow Error: {error}"
+            )
+
+            result = state
+
         finally:
+
             loop.close()
-        status.update(label="✓ Done", state="complete", expanded=False)
+
+        status.update(
+            label="✓ Done",
+            state="complete",
+            expanded=False,
+        )
 
     return result
 
@@ -219,9 +239,22 @@ if generate_clicked:
 
 # ── Active report workspace ───────────────────────────────────────────────────
 active_report = (
-    st.session_state.state.get("active_report", "")
-    if st.session_state.state else ""
+    st.session_state.state.get(
+        "active_report",
+        "",
+    )
+    if st.session_state.state
+    else ""
 )
+
+if not isinstance(
+    active_report,
+    str,
+):
+
+    active_report = str(
+        active_report
+    )
 
 if st.session_state.state and active_report:
     st.divider()
@@ -333,9 +366,23 @@ if st.session_state.state and active_report:
                     st.error(f"Chat Error: {e}")
 
         report_chat_response = (
-            st.session_state.state.get("report_chat_response", "")
-            if st.session_state.state else ""
+            st.session_state.state.get(
+                "report_chat_response",
+                "",
+            )
+            if st.session_state.state
+            else ""
         )
+
+        if not isinstance(
+            report_chat_response,
+            str,
+        ):
+
+            report_chat_response = str(
+                report_chat_response
+            )
+            
         if report_chat_response:
             st.divider()
             st.markdown('<p class="section-label">Answer</p>', unsafe_allow_html=True)
