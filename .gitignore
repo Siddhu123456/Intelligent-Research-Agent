@@ -36,4 +36,4 @@ logs/
 Thumbs.db
 
 # vectorstore
-chroma_db/
+.chroma_db/
