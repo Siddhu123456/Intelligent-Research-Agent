@@ -211,7 +211,10 @@ class RetrievalAgent:
             # Store vectors
 
             VectorTools.store_documents(
-                chunked_documents,
+                documents=chunked_documents,
+                session_id=(
+                    state["session_id"]
+                ),
             )
 
             # Semantic retrieval
@@ -224,13 +227,18 @@ class RetrievalAgent:
                             "contextualized_query"
                         ]
                     ),
+
+                    session_id=(
+                        state["session_id"]
+                    ),
+
                     top_k=(
                         RetrievalAgent
                         .MAX_SEMANTIC_RESULTS
                     ),
                 )
             )
-
+            
             # Rerank retrieved docs
 
             reranked_documents = (

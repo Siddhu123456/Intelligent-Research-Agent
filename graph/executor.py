@@ -56,98 +56,99 @@ class GraphExecutor:
                 )
             ]
         )
-        
+
     async def stream_workflow(
         self,
         state: ResearchState,
     ):
         """
-        Stream workflow execution
-        events from LangGraph.
+        Stream workflow execution events from LangGraph.
+
+        Uses stream_mode="values" so each emission is the full
+        accumulated state snapshot. Deduplicates consecutive
+        events for the same agent before yielding.
         """
 
-        final_state = None
+        final_state    = None
+        previous_agent = None
 
-        async for event in (
+        async for state_update in (
             self._graph.astream(
                 state,
-                stream_mode="updates",
+                stream_mode="values",
             )
         ):
 
-            for (
-                node_name,
-                node_state,
-            ) in event.items():
+            final_state   = state_update
+            current_agent = state_update.get(
+                "current_agent", ""
+            )
 
-                # Save latest state
+            # Skip duplicate consecutive agent events
+            if current_agent == previous_agent:
+                continue
 
-                final_state = (
-                    node_state
-                )
+            previous_agent = current_agent
 
-                # Stream lightweight event
-
-                yield {
-                    "type": "event",
-                    "node": node_name,
-                    "step": node_state.get(
-                        "current_step",
-                    ),
-                    "workflow_decision": (
-                        node_state.get(
-                            "workflow_decision",
-                        )
-                    ),
-                    "message": (
-                        self._build_event_message(
-                            node_name=node_name,
-                        )
-                    ),
-                }
-
-        # Final completed state
+            yield {
+                "type":    "event",
+                "agent":   current_agent,
+                "message": self._build_event_message(
+                    current_agent
+                ),
+            }
 
         yield {
-            "type": "final_state",
+            "type":  "final_state",
             "state": final_state,
         }
-                
+
     @staticmethod
     def _build_event_message(
         node_name: str,
     ) -> str:
 
         messages = {
-            "supervisor":
-                "Supervisor evaluating workflow...",
-
-            "context":
-                "Processing contextual query...",
-
-            "query_decomposition":
-                "Decomposing research query...",
-
-            "retrieval":
-                "Retrieving research documents...",
-
-            "analysis":
-                "Analyzing retrieved information...",
-
-            "report_generation":
-                "Generating research report...",
-
-            "report_refinement":
-                "Refining report sections...",
-
-            "report_chat":
-                "Generating conversational response...",
-
-            "document_generation":
-                "Generating PDF document...",
-
-            "error_recovery":
-                "Handling workflow error...",
+            "supervisor_agent": (
+                "Supervisor evaluating "
+                "workflow..."
+            ),
+            "context_agent": (
+                "Processing contextual "
+                "query..."
+            ),
+            "query_decomposition_agent": (
+                "Decomposing research "
+                "query..."
+            ),
+            "retrieval_agent": (
+                "Retrieving research "
+                "documents..."
+            ),
+            "analysis_agent": (
+                "Analyzing retrieved "
+                "information..."
+            ),
+            "report_generation_agent": (
+                "Generating research "
+                "report..."
+            ),
+            "report_refinement_agent": (
+                "Refining report "
+                "sections..."
+            ),
+            "report_chat_agent": (
+                "Generating conversational "
+                "response..."
+            ),
+            "document_generation_agent": (
+                "Generating PDF "
+                "document..."
+            ),
+            "error_recovery_agent": (
+                "Handling workflow "
+                "error..."
+            ),
         }
 
         return messages.get(

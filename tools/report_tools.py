@@ -59,6 +59,7 @@ class ReportTools:
                             "IMPORTANT RULES:\n"
                             "- title should sound "
                             "professional\n"
+                            "- do not include years in the title\n"
                             "- title should be concise\n"
                             "- title should reflect "
                             "the findings\n"
@@ -411,18 +412,21 @@ class ReportTools:
 
 {title}
 
-## ABSTRACT
+## Abstract
 
 {abstract}
 
 ## Introduction
 
-This report investigates the topic:
+This report provides a structured research analysis on:
+
 "{query}"
 
-The purpose of this research is to analyze major developments, technical concepts, findings, practical applications, and emerging trends related to the subject area.
+The research examines major developments, technical foundations, practical applications, emerging trends, and critical insights associated with the topic.
 
-The report synthesizes information retrieved from multiple sources, including web research, contextual knowledge, and relevant analytical insights to provide a structured understanding of the topic.
+The analysis is based on information retrieved from multiple research sources, including web-based resources, academic references, and contextual analytical findings.
+
+The objective of this report is to synthesize relevant evidence into a professional and coherent research document that highlights key findings, technical observations, and broader implications related to the subject area.
 
 ## Executive Summary
 
