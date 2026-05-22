@@ -87,11 +87,11 @@ The live execution path is:
 - `Streamlit Live Updates`
 
 ```text
-┌──────────────────────┐
-                         │      USER QUERY      │
-                         └──────────┬───────────┘
-                                    │
-                                    ▼
+                        ┌──────────────────────┐
+                        │      USER QUERY      │
+                        └──────────┬───────────┘
+                                   │
+                                   ▼
                      ┌──────────────────────────┐
                      │     StateFactory         │
                      │  create_initial_state()  │
@@ -114,145 +114,145 @@ The live execution path is:
          ▼                      ▼                       ▼
 
 ╔══════════════════════════════════════════════════════════════════╗
-║                  REPORT GENERATION WORKFLOW                     ║
+║                  REPORT GENERATION WORKFLOW                      ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-┌──────────────────────────┐
-│      Context Agent       │
-│ Query Contextualization  │
-│  contextualized_query    │
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│ Query Decomposition Agent│
-│ Generate Sub Queries     │
-│ Web / Arxiv / Wiki       │
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│     Retrieval Agent      │
-│ Tavily Retrieval         │
-│ Arxiv Retrieval          │
-│ Wikipedia Retrieval      │
-│ Deduplication            │
-│ Semantic Chunking        │
-│ Chroma Storage           │
-│ Semantic Retrieval       │
-│ Reranking                │
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│      Analysis Agent      │
-│ Key Findings Extraction  │
-│ Contradictions Analysis  │
-│ Citation Mapping         │
-│ Confidence Scoring       │
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│ Report Generation Agent  │
-│ Title Generation         │
-│ Abstract Generation      │
-│ Introduction Generation  │
-│ Structured Report Build  │
-│ References Formatting    │
-│ Compression Context      │
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│      Final Report        │
-│  Active Workspace State  │
-│ Version History Update   │
-└──────────────────────────┘
+            ┌──────────────────────────┐
+            │      Context Agent       │
+            │ Query Contextualization  │
+            │  contextualized_query    │
+            └────────────┬─────────────┘
+                         │
+                         ▼
+            ┌──────────────────────────┐
+            │ Query Decomposition Agent│
+            │ Generate Sub Queries     │
+            │ Web / Arxiv / Wiki       │
+            └────────────┬─────────────┘
+                         │
+                         ▼
+            ┌──────────────────────────┐
+            │     Retrieval Agent      │
+            │ Tavily Retrieval         │
+            │ Arxiv Retrieval          │
+            │ Wikipedia Retrieval      │
+            │ Deduplication            │
+            │ Semantic Chunking        │
+            │ Chroma Storage           │
+            │ Semantic Retrieval       │
+            │ Reranking                │
+            └────────────┬─────────────┘
+                         │
+                         ▼
+            ┌──────────────────────────┐
+            │      Analysis Agent      │
+            │ Key Findings Extraction  │
+            │ Contradictions Analysis  │
+            │ Citation Mapping         │
+            │ Confidence Scoring       │
+            └────────────┬─────────────┘
+                         │
+                         ▼
+            ┌──────────────────────────┐
+            │ Report Generation Agent  │
+            │ Title Generation         │
+            │ Abstract Generation      │
+            │ Introduction Generation  │
+            │ Structured Report Build  │
+            │ References Formatting    │
+            │ Compression Context      │
+            └────────────┬─────────────┘
+                         │
+                         ▼
+            ┌──────────────────────────┐
+            │      Final Report        │
+            │  Active Workspace State  │
+            │ Version History Update   │
+            └──────────────────────────┘
 
 
 ╔══════════════════════════════════════════════════════════════════╗
-║                   REPORT REFINEMENT WORKFLOW                    ║
+║                   REPORT REFINEMENT WORKFLOW                     ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-┌──────────────────────────┐
-│ Report Refinement Agent  │
-│ Section Identification   │
-│ Targeted Refinement      │
-│ Section Replacement      │
-│ Report Reconstruction    │
-│ Context Compression      │
-│ Version Update           │
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│ Updated Active Report    │
-│ Same Chroma Collection   │
-│ Same Workspace Context   │
-└──────────────────────────┘
+                ┌──────────────────────────┐
+                │ Report Refinement Agent  │
+                │ Section Identification   │
+                │ Targeted Refinement      │
+                │ Section Replacement      │
+                │ Report Reconstruction    │
+                │ Context Compression      │
+                │ Version Update           │
+                └────────────┬─────────────┘
+                             │
+                             ▼
+                ┌──────────────────────────┐
+                │ Updated Active Report    │
+                │ Same Chroma Collection   │
+                │ Same Workspace Context   │
+                └──────────────────────────┘
 
 
 ╔══════════════════════════════════════════════════════════════════╗
-║                     REPORT CHAT WORKFLOW                        ║
+║                     REPORT CHAT WORKFLOW                         ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-┌──────────────────────────┐
-│     Report Chat Agent    │
-│ Compressed Context Q&A   │
-│ Workspace-Aware Chat     │
-│ Citation Grounding       │
-│ Semantic Retrieval       │
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│ Conversational Response  │
-│ Chat History Persistence │
-└──────────────────────────┘
+                ┌──────────────────────────┐
+                │     Report Chat Agent    │
+                │ Compressed Context Q&A   │
+                │ Workspace-Aware Chat     │
+                │ Citation Grounding       │
+                │ Semantic Retrieval       │
+                └────────────┬─────────────┘
+                             │
+                             ▼
+                ┌──────────────────────────┐
+                │ Conversational Response  │
+                │ Chat History Persistence │
+                └──────────────────────────┘
 
 
 ╔══════════════════════════════════════════════════════════════════╗
-║                 DOCUMENT GENERATION WORKFLOW                    ║
-╚══════════════════════════════════════════════════════════╝
+║                 DOCUMENT GENERATION WORKFLOW                     ║
+╚══════════════════════════════════════════════════════════════════╝
 
-┌──────────────────────────┐
-│ Document Generation Agent│
-│ PDF Rendering            │
-│ Markdown → PDF           │
-│ Download Generation      │
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│      Generated PDF       │
-│ Downloadable Version     │
-└──────────────────────────┘
+                ┌──────────────────────────┐
+                │ Document Generation Agent│
+                │ PDF Rendering            │
+                │ Markdown → PDF           │
+                │ Download Generation      │
+                └────────────┬─────────────┘
+                             │
+                             ▼
+                ┌──────────────────────────┐
+                │      Generated PDF       │
+                │ Downloadable Version     │
+                └──────────────────────────┘
 
 
 ╔══════════════════════════════════════════════════════════════════╗
-║                    VECTORSTORE ARCHITECTURE                     ║
+║                    VECTORSTORE ARCHITECTURE                      ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-          ┌────────────────────────────┐
-          │      Session Scoped        │
-          │      ChromaDB Store        │
-          └────────────┬───────────────┘
-                       │
+                ┌────────────────────────────┐
+                │      Session Scoped        │
+                │      ChromaDB Store        │
+                └────────────┬───────────────┘
+                             │
 
-      ┌────────────────┼────────────────┐
-      │                │                │
+            ┌────────────────┼────────────────┐
+            │                │                │
 
-      ▼                ▼                ▼
+            ▼                ▼                ▼
 
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│ Session A    │ │ Session B    │ │ Session C    │
-│ AI Research  │ │ Chemistry    │ │ Biology      │
-└──────┬───────┘ └──────┬────────┘ └──────┬────────┘
-       │                │                │
-       ▼                ▼                ▼
+        ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+        │ Session A    │ │ Session B    │ │ Session C    │
+        │ AI Research  │ │ Chemistry    │ │ Biology      │
+        └──────┬───────┘ └──────┬───────┘ └──────┬───────┘
+               │                │                │
+               ▼                ▼                ▼
+        research_<id_A>   research_<id_B>   research_<id_C>
 
-research_<id_A>   research_<id_B>   research_<id_C>
 
 Isolated collections prevent:
 - cross-report contamination
@@ -262,22 +262,22 @@ Isolated collections prevent:
 
 
 ╔══════════════════════════════════════════════════════════════════╗
-║                    STREAMING EXECUTION FLOW                     ║
-╚══════════════════════════════════════════════════════════╝
+║                    STREAMING EXECUTION FLOW                      ║
+╚══════════════════════════════════════════════════════════════════╝
 
-LangGraph astream(values)
-            │
-            ▼
- GraphExecutor.stream_workflow()
-            │
-            ▼
- current_step Tracking
-            │
-            ▼
- Step Event Mapping
-            │
-            ▼
- Streamlit Live Updates
+                    LangGraph astream(values)
+                                │
+                                ▼
+                    GraphExecutor.stream_workflow()
+                                │
+                                ▼
+                    current_step Tracking
+                                │
+                                ▼
+                    Step Event Mapping
+                                │
+                                ▼
+                    Streamlit Live Updates
 ```
 
 ## Tech Stack
