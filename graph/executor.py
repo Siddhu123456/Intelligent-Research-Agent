@@ -62,15 +62,13 @@ class GraphExecutor:
         state: ResearchState,
     ):
         """
-        Stream workflow execution events from LangGraph.
-
-        Uses stream_mode="values" so each emission is the full
-        accumulated state snapshot. Deduplicates consecutive
-        events for the same agent before yielding.
+        Stream workflow execution
+        events from LangGraph.
         """
 
-        final_state    = None
-        previous_agent = None
+        final_state = None
+
+        previous_step = None
 
         async for state_update in (
             self._graph.astream(
@@ -79,27 +77,42 @@ class GraphExecutor:
             )
         ):
 
-            final_state   = state_update
-            current_agent = state_update.get(
-                "current_agent", ""
+            final_state = state_update
+
+            current_step = (
+                state_update.get(
+                    "current_step",
+                    "",
+                )
             )
 
-            # Skip duplicate consecutive agent events
-            if current_agent == previous_agent:
+            # Skip duplicate step updates
+
+            if (
+                current_step
+                == previous_step
+            ):
+
                 continue
 
-            previous_agent = current_agent
+            previous_step = (
+                current_step
+            )
 
             yield {
-                "type":    "event",
-                "agent":   current_agent,
-                "message": self._build_event_message(
-                    current_agent
+                "type": "event",
+
+                "step": current_step,
+
+                "message": (
+                    self._build_event_message(
+                        current_step
+                    )
                 ),
             }
 
         yield {
-            "type":  "final_state",
+            "type": "final_state",
             "state": final_state,
         }
 
@@ -109,47 +122,48 @@ class GraphExecutor:
     ) -> str:
 
         messages = {
-            "supervisor_agent": (
-                "Supervisor evaluating "
-                "workflow..."
-            ),
-            "context_agent": (
-                "Processing contextual "
-                "query..."
-            ),
-            "query_decomposition_agent": (
-                "Decomposing research "
-                "query..."
-            ),
-            "retrieval_agent": (
-                "Retrieving research "
-                "documents..."
-            ),
-            "analysis_agent": (
-                "Analyzing retrieved "
-                "information..."
-            ),
-            "report_generation_agent": (
-                "Generating research "
-                "report..."
-            ),
-            "report_refinement_agent": (
-                "Refining report "
-                "sections..."
-            ),
-            "report_chat_agent": (
-                "Generating conversational "
-                "response..."
-            ),
-            "document_generation_agent": (
-                "Generating PDF "
-                "document..."
-            ),
-            "error_recovery_agent": (
-                "Handling workflow "
-                "error..."
-            ),
-        }
+
+                        "start":
+                            (
+                                "Supervisor evaluating "
+                                "workflow..."
+                            ),
+
+                        "contextualized":
+                            (
+                                "Processing contextual "
+                                "query..."
+                            ),
+
+                        "decomposed":
+                            (
+                                "Decomposing research "
+                                "query..."
+                            ),
+
+                        "retrieved":
+                            (
+                                "Retrieving research "
+                                "documents..."
+                            ),
+
+                        "analyzed":
+                            (
+                                "Analyzing retrieved "
+                                "information..."
+                            ),
+
+                        "done":
+                            (
+                                "Workflow completed."
+                            ),
+
+                        "error":
+                            (
+                                "Handling workflow "
+                                "error..."
+                            ),
+                    }
 
         return messages.get(
             node_name,
