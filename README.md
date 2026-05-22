@@ -13,6 +13,25 @@ A full-stack AI research workspace built around a LangGraph-driven multi-agent p
 - Run a FastAPI chat endpoint for programmatic access
 - Multi-source retrieval from Tavily web search, arXiv, and Wikipedia
 
+## Repository Structure
+
+- `api/` — FastAPI application entrypoints, request/response models, and session persistence
+- `agents/` — workflow agent classes that implement each stage of the research pipeline
+- `graph/` — LangGraph workflow graph builder, routing, executor, and node wiring
+- `config/` — environment loading and runtime settings
+- `memory/` — session memory, long-term summary memory, and memory management helpers
+- `state/` — typed state definitions, schemas, models, and validation utilities
+- `streamlit_app/` — Streamlit UI flow and application interface
+- `tests/` — unit and integration tests for repository behavior
+- `tools/` — reusable workflow tool helpers and domain-specific utilities
+- `utils/` — model factories, state helpers, persistence utilities, and logging
+- `docs/` — documentation assets, including the workflow diagram
+- `main.py` — application entrypoint for local CLI-style execution
+
+## Workflow Diagram
+
+![Workflow Diagram](docs/work_flow_diagram.png)
+
 ## Architecture Overview
 
 The repository implements a LangGraph workflow graph with dedicated nodes for:
