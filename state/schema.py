@@ -1,52 +1,119 @@
-from typing import TypedDict
+from typing import (
+    Literal,
+    TypedDict,
+)
 
-from langgraph.graph.message import add_messages
-from typing_extensions import Annotated
+from langgraph.graph.message import (
+    add_messages,
+)
 
-from state.models import Citation
-from state.models import Document
-from state.models import SubQuery
+from typing_extensions import (
+    Annotated,
+)
+
+from state.models import (
+    Citation,
+    Document,
+    SubQuery,
+)
 
 
-class ResearchState(TypedDict):
+class ResearchState(
+    TypedDict,
+):
     """Shared state across all graph nodes."""
+
+    # Core query state
 
     query: str
 
-    sub_queries: list[SubQuery]
+    contextualized_query: str
 
-    retrieved_documents: list[Document]
-
-    analysis_summary: str
-
-    key_findings: list[str]
-
-    citations: list[Citation]
-
-    final_report: str
+    # Workflow execution state
 
     current_step: str
+
+    workflow_decision: str
+
+    retry_count: int
+
+    max_retries: int
 
     low_confidence: bool
 
     error: str | None
 
-    messages: Annotated[list, add_messages]
+    # Retrieval state
+
+    sub_queries: list[
+        SubQuery
+    ]
+
+    retrieved_documents: list[
+        Document
+    ]
+
+    # Analysis state
+
+    analysis_summary: str
+
+    key_findings: list[str]
+
+    citations: list[
+        Citation
+    ]
+
+    # Report workspace state
+
+    active_report: str
     
+    report_sections: dict[str, str]
+    
+    report_section_order: list[str]
+
+    refinement_query: str
+
+    report_chat_query: str
+
+    report_chat_response: str
+
+    report_version_history: list[
+        dict
+    ]
+    
+    compressed_report_context: str
+
+    # Document generation state
+
+    generated_pdf: bytes | None
+
+    # Conversation memory state
+
+    messages: Annotated[
+        list,
+        add_messages,
+    ]
+
     conversation_summary: str
 
-    contextualized_query: str
+    conversation_turn: int
+
+    # Session state
 
     session_id: str
 
-    conversation_turn: int
-    
-    retry_count: int
+    # Workspace mode
 
-    max_retries: int
+    mode: Literal[
+        "REPORT_GENERATION",
+        "REPORT_CHAT",
+        "REPORT_REFINEMENT",
+        "DOCUMENT_GENERATION",
+    ]
 
-    workflow_decision: str
-    
-    report_history: list[dict]
+    # Execution metadata
 
-    run_metadata: dict[str, str]
+    run_metadata: dict[
+        str,
+        str,
+    ]

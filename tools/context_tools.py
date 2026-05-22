@@ -19,6 +19,8 @@ class ContextTools:
         messages: list[BaseMessage],
         summary: str,
     ) -> str:
+        """Build conversational context."""
+
         recent_messages = "\n".join(
             [
                 (
@@ -41,8 +43,11 @@ class ContextTools:
         query: str,
         conversation_context: str,
     ) -> str:
+        """Rewrite conversational query into standalone query."""
+
         llm = (
-            LLMFactory.create_qwen_llm(
+            LLMFactory
+            .create_qwen_llm(
                 temperature=0.1,
             )
         )
@@ -61,13 +66,13 @@ Current User Query:
 {query}
 
 Rules:
-- Preserve original meaning.
-- Resolve references like:
-  it, they, them, this, that.
-- Make the query standalone.
-- Keep it concise.
-- Do not answer the query.
-Return ONLY valid JSON.
+- preserve original meaning
+- resolve references like:
+  it, they, them, this, that
+- make the query standalone
+- keep the query concise
+- do not answer the query
+- return only valid JSON
 
 Format:
 {{
@@ -76,15 +81,19 @@ Format:
 
 Examples:
 
+Input:
 "What are its applications?"
-→
+
+Output:
 {{
   "rewritten_query":
   "What are the applications of quantum computing?"
 }}
 
+Input:
 "What about recent advancements?"
-→
+
+Output:
 {{
   "rewritten_query":
   "What are the recent advancements in quantum computing?"
@@ -95,31 +104,37 @@ Examples:
             prompt,
         )
 
-        try:
-
-            parsed_response = (
-                JSONParser.extract_json(
-                    response.content,
-                )
+        parsed_response = (
+            JSONParser.safe_extract(
+                content=(
+                    response.content
+                ),
+                fallback={
+                    "rewritten_query": query,
+                },
             )
+        )
 
-            return (
-                parsed_response[
-                    "rewritten_query"
-                ].strip()
+        rewritten_query = (
+            parsed_response.get(
+                "rewritten_query",
+                query,
             )
+        )
 
-        except Exception:
-
-            return query
+        return (
+            rewritten_query.strip()
+        )
 
     @staticmethod
     def refine_query(
         query: str,
     ) -> str:
+        """Refine research query for retrieval."""
 
         llm = (
-            LLMFactory.create_qwen_llm(
+            LLMFactory
+            .create_qwen_llm(
                 temperature=0.2,
             )
         )
@@ -135,39 +150,41 @@ Query:
 {query}
 
 Rules:
-- Keep original meaning.
-- Make query more specific.
-- Improve searchability.
-- Keep the query concise.
-- Do not answer the query.
-(
-Return ONLY valid JSON.
+- preserve original meaning
+- make query more specific
+- improve searchability
+- keep the query concise
+- do not answer the query
+- return only valid JSON
 
 Format:
 {{
   "refined_query": "..."
 }}
-)
 """
 
         response = llm.invoke(
             prompt,
         )
 
-        try:
-
-            parsed_response = (
-                JSONParser.extract_json(
-                    response.content,
-                )
+        parsed_response = (
+            JSONParser.safe_extract(
+                content=(
+                    response.content
+                ),
+                fallback={
+                    "refined_query": query,
+                },
             )
+        )
 
-            return (
-                parsed_response[
-                    "refined_query"
-                ].strip()
+        refined_query = (
+            parsed_response.get(
+                "refined_query",
+                query,
             )
+        )
 
-        except Exception:
-
-            return query
+        return (
+            refined_query.strip()
+        )

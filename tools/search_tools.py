@@ -8,7 +8,12 @@ from config.settings import settings
 from state.constants import Domain
 from state.models import Document
 from state.models import SubQuery
+from utils.logger import setup_logger
 
+
+logger = setup_logger(
+    __name__,
+)
 
 class SearchTools:
     """Tools for multi-source retrieval."""
@@ -27,6 +32,12 @@ class SearchTools:
         sub_query: SubQuery,
         max_results: int = 5,
     ) -> list[Document]:
+        
+        logger.info(
+            "Starting Tavily search: %s",
+            sub_query.query,
+        )
+        
         response = (
             SearchTools._tavily_client.search(
                 query=sub_query.query,

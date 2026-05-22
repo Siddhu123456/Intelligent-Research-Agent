@@ -1,4 +1,10 @@
 from langchain_groq import ChatGroq
+from langchain_openai import (
+    ChatOpenAI,
+)
+from langchain_community.chat_models import (
+    ChatOllama,
+)
 
 from config.settings import settings
 
@@ -15,3 +21,15 @@ class LLMFactory:
             temperature=temperature,
             api_key=settings.groq_api_key,
         )
+
+    @staticmethod
+    def create_ollama_llm(
+        temperature: float = 0.2,
+    ):
+
+        return ChatOllama(
+            model="gemma:2b",
+            temperature=temperature,
+        )   
+    
+    

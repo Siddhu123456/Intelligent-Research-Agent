@@ -1,7 +1,14 @@
-from langgraph.graph import END
+from langgraph.graph import (
+    END,
+)
 
-from state.constants import CurrentStep
-from state.schema import ResearchState
+from state.constants import (
+    CurrentStep,
+)
+
+from state.schema import (
+    ResearchState,
+)
 
 
 class GraphRouter:
@@ -11,8 +18,6 @@ class GraphRouter:
     def route(
         state: ResearchState,
     ) -> str:
-        if state.get("error"):
-            return "error_recovery"
 
         workflow_decision = (
             state[
@@ -20,11 +25,84 @@ class GraphRouter:
             ]
         )
 
+        current_step = (
+            state[
+                "current_step"
+            ]
+        )
+
+        # Error termination
+
+        if (
+            workflow_decision
+            == "terminate"
+        ):
+
+            return (
+                "error_recovery"
+            )
+
+        # Retrieval retry workflow
+
         if (
             workflow_decision
             == "retry_retrieval"
         ):
+
             return "retrieval"
+
+        # Intelligent report refinement workflow
+
+        if (
+            workflow_decision
+            == "report_refinement"
+        ):
+
+            return (
+                "report_refinement"
+            )
+
+        # Conversational report chat workflow
+
+        if (
+            workflow_decision
+            == "report_chat"
+        ):
+
+            return "report_chat"
+
+        # Report generation workflow
+
+        if (
+            workflow_decision
+            == "generate_report"
+        ):
+
+            return (
+                "report_generation"
+            )
+
+        # Document generation workflow
+
+        if (
+            workflow_decision
+            == "generate_document"
+        ):
+
+            return (
+                "document_generation"
+            )
+
+        # Workflow completion
+
+        if (
+            workflow_decision
+            == "complete"
+        ):
+
+            return END
+
+        # Default workflow routing
 
         routing_map = {
             CurrentStep.START.value:
@@ -47,6 +125,6 @@ class GraphRouter:
         }
 
         return routing_map.get(
-            state["current_step"],
+            current_step,
             END,
         )

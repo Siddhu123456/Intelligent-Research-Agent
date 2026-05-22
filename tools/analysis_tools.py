@@ -19,15 +19,35 @@ from utils.llm_factory import (
 class AnalysisTools:
     """Tools for research analysis."""
 
+    MAX_FINDINGS = 5
+
+    CONTEXT_DOCUMENT_LIMIT = 5
+
+    CONTEXT_CONTENT_LIMIT = 1000
+
     @staticmethod
     def extract_key_findings(
         documents: list[Document],
         query: str,
     ) -> list[str]:
+        """Extract important findings."""
+
+        if not documents:
+
+            return []
+
         llm = (
-            LLMFactory.create_qwen_llm(
+            LLMFactory
+            .create_qwen_llm(
                 temperature=0.1,
             )
+        )
+
+        limited_documents = (
+            documents[
+                :AnalysisTools
+                .CONTEXT_DOCUMENT_LIMIT
+            ]
         )
 
         context = "\n\n".join(
@@ -36,47 +56,44 @@ class AnalysisTools:
                     f"Title: "
                     f"{document.title}\n"
                     f"Content: "
-                    f"{document.content[:1000]}"
+                    f"{document.content[
+                        :AnalysisTools
+                        .CONTEXT_CONTENT_LIMIT
+                    ]}"
                 )
-                for document in documents
+                for document in (
+                    limited_documents
+                )
             ]
         )
 
         prompt = (
-            ChatPromptTemplate.from_messages(
+            ChatPromptTemplate
+            .from_messages(
                 [
                     (
                         "system",
                         (
-                            "You are an expert research analyst.\n\n"
+                            "You are an expert "
+                            "research analyst.\n\n"
 
-                            "Analyze the retrieved documents and extract "
-                            "up to 5 important findings relevant to the "
-                            "user query.\n\n"
+                            "Analyze the retrieved "
+                            "documents and extract "
+                            "important findings "
+                            "relevant to the query.\n\n"
 
-                            "IMPORTANT RULES:\n"
-                            "- Prioritize findings directly related "
-                            "to the query.\n"
-                            "- Ignore irrelevant information.\n"
-                            "- Do not hallucinate unsupported facts.\n"
-                            "- Preserve factual accuracy.\n"
-                            "- Avoid repetition.\n"
-                            "- Keep findings concise and technical.\n"
-                            "- If relevant information is limited, "
-                            "extract the closest useful insights.\n\n"
-
-                            "Focus on:\n"
-                            "- technical findings\n"
-                            "- important conclusions\n"
-                            "- practical insights\n"
-                            "- key observations\n\n"
-
-                            "Return ONLY valid JSON.\n\n"
+                            "Rules:\n"
+                            "- preserve factual accuracy\n"
+                            "- avoid hallucinations\n"
+                            "- avoid repetition\n"
+                            "- keep findings concise\n"
+                            "- focus on technical "
+                            "and practical insights\n"
+                            "- return only valid JSON\n\n"
 
                             "Format:\n"
                             "{{\n"
                             '  "findings": [\n'
-                            '    "...",\n'
                             '    "..."\n'
                             "  ]\n"
                             "}}"
@@ -107,33 +124,51 @@ class AnalysisTools:
             }
         )
 
-        try:
-
-            parsed_response = (
-                JSONParser.extract_json(
-                    response.content,
-                )
+        parsed_response = (
+            JSONParser.safe_extract(
+                content=(
+                    response.content
+                ),
+                fallback={
+                    "findings": [],
+                },
             )
+        )
 
-            findings = (
-                parsed_response.get(
-                    "findings",
-                    [],
-                )
+        findings = (
+            parsed_response.get(
+                "findings",
+                [],
             )
+        )
 
-            return findings[:5]
+        cleaned_findings = [
+            finding.strip()
+            for finding in findings
+            if finding.strip()
+        ]
 
-        except Exception:
-
-            return []
+        return cleaned_findings[
+            :AnalysisTools
+            .MAX_FINDINGS
+        ]
 
     @staticmethod
     def generate_analysis_summary(
         findings: list[str],
     ) -> str:
+        """Generate analysis summary."""
+
+        if not findings:
+
+            return (
+                "Insufficient findings "
+                "available for analysis."
+            )
+
         llm = (
-            LLMFactory.create_qwen_llm(
+            LLMFactory
+            .create_qwen_llm(
                 temperature=0.2,
             )
         )
@@ -143,41 +178,30 @@ class AnalysisTools:
         )
 
         prompt = (
-            ChatPromptTemplate.from_messages(
+            ChatPromptTemplate
+            .from_messages(
                 [
                     (
                         "system",
                         (
-                            "You are an expert research analyst.\n\n"
+                            "You are an expert "
+                            "research analyst.\n\n"
 
-                            "Generate a concise and professional "
-                            "analysis summary.\n\n"
+                            "Generate a concise and "
+                            "professional analysis "
+                            "summary.\n\n"
 
-                            "IMPORTANT RULES:\n"
-                            "- Prioritize findings relevant to the topic.\n"
-                            "- Ignore unrelated observations.\n"
-                            "- Do not hallucinate unsupported claims.\n"
-                            "- Keep the summary factual and concise.\n\n"
-
-                            "FALLBACK BEHAVIOR:\n"
-                            "- If findings are weak, sparse, or partially "
-                            "irrelevant, generate a clear high-level "
-                            "summary of the overall topic using general "
-                            "knowledge.\n"
-                            "- Do not reference unrelated findings in "
-                            "fallback mode.\n\n"
-
-                            "Focus on:\n"
-                            "- major insights\n"
-                            "- implications\n"
-                            "- technical conclusions\n"
-                            "- practical observations\n\n"
-
-                            "Return ONLY valid JSON.\n\n"
+                            "Rules:\n"
+                            "- preserve factual accuracy\n"
+                            "- avoid hallucinations\n"
+                            "- focus on important insights\n"
+                            "- summarize implications\n"
+                            "- keep the summary concise\n"
+                            "- return only valid JSON\n\n"
 
                             "Format:\n"
                             "{{\n"
-                            '  "summary": "..." \n'
+                            '  "summary": "..."\n'
                             "}}"
                         ),
                     ),
@@ -203,32 +227,41 @@ class AnalysisTools:
             }
         )
 
-        try:
-
-            parsed_response = (
-                JSONParser.extract_json(
-                    response.content,
-                )
+        parsed_response = (
+            JSONParser.safe_extract(
+                content=(
+                    response.content
+                ),
+                fallback={
+                    "summary": findings_text,
+                },
             )
+        )
 
-            return (
-                parsed_response[
-                    "summary"
-                ].strip()
+        return (
+            parsed_response.get(
+                "summary",
+                findings_text,
             )
-
-        except Exception:
-
-            return (
-                findings_text
-            )
+            .strip()
+        )
 
     @staticmethod
     def identify_contradictions(
         findings: list[str],
     ) -> str:
+        """Identify contradictions and limitations."""
+
+        if not findings:
+
+            return (
+                "No findings available "
+                "for contradiction analysis."
+            )
+
         llm = (
-            LLMFactory.create_qwen_llm(
+            LLMFactory
+            .create_qwen_llm(
                 temperature=0.1,
             )
         )
@@ -238,39 +271,30 @@ class AnalysisTools:
         )
 
         prompt = (
-            ChatPromptTemplate.from_messages(
+            ChatPromptTemplate
+            .from_messages(
                 [
                     (
                         "system",
                         (
-                            "You are a contradiction analysis agent.\n\n"
+                            "You are a contradiction "
+                            "analysis agent.\n\n"
 
-                            "Analyze the findings for contradictions, "
-                            "inconsistencies, uncertainty, and limitations.\n\n"
-
-                            "IMPORTANT RULES:\n"
-                            "- Only identify contradictions supported "
-                            "by the findings.\n"
-                            "- Do not invent conflicts.\n"
-                            "- Ignore unrelated findings.\n"
-                            "- Keep the analysis concise and factual.\n\n"
-
-                            "FALLBACK BEHAVIOR:\n"
-                            "- If no meaningful contradictions exist, "
-                            "summarize the overall consistency and "
-                            "limitations of the findings.\n\n"
-
-                            "Focus on:\n"
-                            "- conflicting statements\n"
+                            "Analyze findings for:\n"
+                            "- contradictions\n"
+                            "- inconsistencies\n"
                             "- uncertainty\n"
-                            "- evidence limitations\n"
-                            "- missing information\n\n"
+                            "- evidence limitations\n\n"
 
-                            "Return ONLY valid JSON.\n\n"
+                            "Rules:\n"
+                            "- avoid hallucinations\n"
+                            "- avoid inventing conflicts\n"
+                            "- keep analysis concise\n"
+                            "- return only valid JSON\n\n"
 
                             "Format:\n"
                             "{{\n"
-                            '  "analysis": "..." \n'
+                            '  "analysis": "..."\n'
                             "}}"
                         ),
                     ),
@@ -296,31 +320,40 @@ class AnalysisTools:
             }
         )
 
-        try:
-
-            parsed_response = (
-                JSONParser.extract_json(
-                    response.content,
-                )
+        parsed_response = (
+            JSONParser.safe_extract(
+                content=(
+                    response.content
+                ),
+                fallback={
+                    "analysis":
+                    (
+                        "No major contradictions "
+                        "detected."
+                    ),
+                },
             )
+        )
 
-            return (
-                parsed_response[
-                    "analysis"
-                ].strip()
+        return (
+            parsed_response.get(
+                "analysis",
+                (
+                    "No major contradictions "
+                    "detected."
+                ),
             )
-
-        except Exception:
-
-            return (
-                "No major contradictions detected."
-            )
+            .strip()
+        )
 
     @staticmethod
     def score_confidence(
         documents: list[Document],
     ) -> float:
+        """Calculate retrieval confidence."""
+
         if not documents:
+
             return 0.0
 
         source_diversity = len(
@@ -360,21 +393,30 @@ class AnalysisTools:
         findings: list[str],
         documents: list[Document],
     ) -> list[Citation]:
-        citations: list[Citation] = []
+        """Build citations from findings."""
 
-        usable_documents = documents[
-            : len(findings)
-        ]
+        citations = []
 
-        for finding, document in zip(
+        usable_documents = (
+            documents[
+                : len(findings)
+            ]
+        )
+
+        for (
+            finding,
+            document,
+        ) in zip(
             findings,
             usable_documents,
         ):
+
             citations.append(
                 Citation(
                     doc_id=document.id,
                     claim=finding,
                     source=document.title,
+                    url=document.url,
                 )
             )
 

@@ -13,11 +13,15 @@ class VectorTools:
     """Tools for vector database operations."""
 
     @staticmethod
+    @staticmethod
     def store_documents(
         documents: list[Document],
+        session_id: str,
     ) -> None:
         vector_store = (
-            VectorStoreManager.get_vector_store()
+            VectorStoreManager.get_vector_store(
+                session_id=session_id,
+            )
         )
 
         langchain_documents = []
@@ -49,12 +53,16 @@ class VectorTools:
         )
 
     @staticmethod
+    @staticmethod
     def semantic_search(
         query: str,
+        session_id: str,
         top_k: int = 5,
     ) -> list[Document]:
         vector_store = (
-            VectorStoreManager.get_vector_store()
+            VectorStoreManager.get_vector_store(
+                session_id=session_id,
+            )
         )
 
         results = (
