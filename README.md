@@ -28,6 +28,258 @@ The repository implements a LangGraph workflow graph with dedicated nodes for:
 - `document_generation` — creating PDF output
 - `error_recovery` — handling workflow failures
 
+## Workflow Overview
+
+The system supports three main report workflows and a document export flow.
+
+### Report Generation Workflow
+
+The report generation pipeline is driven by the supervisor node and follows this flow:
+
+- `StateFactory.create_initial_state()`
+- `Supervisor Agent` → `Workflow Decision Node`
+- `REPORT_GENERATION`
+  - `Context Agent` → `Query Contextualization` (`contextualized_query`)
+  - `Query Decomposition Agent` → `Generate Sub Queries` (`Web / Arxiv / Wiki`)
+  - `Retrieval Agent` → `Tavily Retrieval`, `Arxiv Retrieval`, `Wikipedia Retrieval`, `Deduplication`, `Semantic Chunking`, `Chroma Storage`, `Semantic Retrieval`, `Reranking`
+  - `Analysis Agent` → `Key Findings Extraction`, `Contradictions Analysis`, `Citation Mapping`, `Confidence Scoring`
+  - `Report Generation Agent` → `Title Generation`, `Abstract Generation`, `Introduction Generation`, `Structured Report Build`, `References Formatting`, `Compression Context`
+- `Final Report` → `Active Workspace State`, `Version History Update`
+
+### Report Refinement Workflow
+
+- `Report Refinement Agent` → `Section Identification`, `Targeted Refinement`, `Section Replacement`, `Report Reconstruction`, `Context Compression`, `Version Update`
+- `Updated Active Report` → `Same Chroma Collection`, `Same Workspace Context`
+
+### Report Chat Workflow
+
+- `Report Chat Agent` → `Compressed Context Q&A`, `Workspace-Aware Chat`, `Citation Grounding`, `Semantic Retrieval`
+- `Conversational Response` → `Chat History Persistence`
+
+### Document Generation Workflow
+
+- `Document Generation Agent` → `PDF Rendering`, `Markdown → PDF`, `Download Generation`
+- `Generated PDF` → `Downloadable Version`
+
+### Vectorstore Architecture
+
+The repository uses session-scoped ChromaDB collections to isolate report-specific semantic data and avoid contamination:
+
+- `Session A` → `research_<id_A>`
+- `Session B` → `research_<id_B>`
+- `Session C` → `research_<id_C>`
+
+This prevents:
+
+- cross-report contamination
+- stale semantic retrieval
+- unrelated chunk leakage
+- citation drift
+
+### Streaming Execution Flow
+
+The live execution path is:
+
+- `LangGraph astream(values)`
+- `GraphExecutor.stream_workflow()`
+- `current_step Tracking`
+- `Step Event Mapping`
+- `Streamlit Live Updates`
+
+```text
+┌──────────────────────┐
+                         │      USER QUERY      │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                     ┌──────────────────────────┐
+                     │     StateFactory         │
+                     │  create_initial_state()  │
+                     └──────────┬───────────────┘
+                                │
+                                ▼
+                    ┌───────────────────────────┐
+                    │      Supervisor Agent     │
+                    │   Workflow Decision Node  │
+                    └──────────┬────────────────┘
+                               │
+        ┌──────────────────────┼────────────────────────┐
+        │                      │                        │
+        ▼                      ▼                        ▼
+
+┌──────────────────┐  ┌────────────────────┐  ┌────────────────────┐
+│ REPORT_GENERATION│  │ REPORT_REFINEMENT  │  │    REPORT_CHAT     │
+└────────┬─────────┘  └─────────┬──────────┘  └─────────┬──────────┘
+         │                      │                       │
+         ▼                      ▼                       ▼
+
+╔══════════════════════════════════════════════════════════════════╗
+║                  REPORT GENERATION WORKFLOW                     ║
+╚══════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────┐
+│      Context Agent       │
+│ Query Contextualization  │
+│  contextualized_query    │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│ Query Decomposition Agent│
+│ Generate Sub Queries     │
+│ Web / Arxiv / Wiki       │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│     Retrieval Agent      │
+│ Tavily Retrieval         │
+│ Arxiv Retrieval          │
+│ Wikipedia Retrieval      │
+│ Deduplication            │
+│ Semantic Chunking        │
+│ Chroma Storage           │
+│ Semantic Retrieval       │
+│ Reranking                │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│      Analysis Agent      │
+│ Key Findings Extraction  │
+│ Contradictions Analysis  │
+│ Citation Mapping         │
+│ Confidence Scoring       │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│ Report Generation Agent  │
+│ Title Generation         │
+│ Abstract Generation      │
+│ Introduction Generation  │
+│ Structured Report Build  │
+│ References Formatting    │
+│ Compression Context      │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│      Final Report        │
+│  Active Workspace State  │
+│ Version History Update   │
+└──────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════╗
+║                   REPORT REFINEMENT WORKFLOW                    ║
+╚══════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────┐
+│ Report Refinement Agent  │
+│ Section Identification   │
+│ Targeted Refinement      │
+│ Section Replacement      │
+│ Report Reconstruction    │
+│ Context Compression      │
+│ Version Update           │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│ Updated Active Report    │
+│ Same Chroma Collection   │
+│ Same Workspace Context   │
+└──────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════╗
+║                     REPORT CHAT WORKFLOW                        ║
+╚══════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────┐
+│     Report Chat Agent    │
+│ Compressed Context Q&A   │
+│ Workspace-Aware Chat     │
+│ Citation Grounding       │
+│ Semantic Retrieval       │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│ Conversational Response  │
+│ Chat History Persistence │
+└──────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════╗
+║                 DOCUMENT GENERATION WORKFLOW                    ║
+╚══════════════════════════════════════════════════════════╝
+
+┌──────────────────────────┐
+│ Document Generation Agent│
+│ PDF Rendering            │
+│ Markdown → PDF           │
+│ Download Generation      │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│      Generated PDF       │
+│ Downloadable Version     │
+└──────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════╗
+║                    VECTORSTORE ARCHITECTURE                     ║
+╚══════════════════════════════════════════════════════════════════╝
+
+          ┌────────────────────────────┐
+          │      Session Scoped        │
+          │      ChromaDB Store        │
+          └────────────┬───────────────┘
+                       │
+
+      ┌────────────────┼────────────────┐
+      │                │                │
+
+      ▼                ▼                ▼
+
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│ Session A    │ │ Session B    │ │ Session C    │
+│ AI Research  │ │ Chemistry    │ │ Biology      │
+└──────┬───────┘ └──────┬────────┘ └──────┬────────┘
+       │                │                │
+       ▼                ▼                ▼
+
+research_<id_A>   research_<id_B>   research_<id_C>
+
+Isolated collections prevent:
+- cross-report contamination
+- stale semantic retrieval
+- unrelated chunk leakage
+- citation drift
+
+
+╔══════════════════════════════════════════════════════════════════╗
+║                    STREAMING EXECUTION FLOW                     ║
+╚══════════════════════════════════════════════════════════╝
+
+LangGraph astream(values)
+            │
+            ▼
+ GraphExecutor.stream_workflow()
+            │
+            ▼
+ current_step Tracking
+            │
+            ▼
+ Step Event Mapping
+            │
+            ▼
+ Streamlit Live Updates
+```
+
 ## Tech Stack
 
 - Python
