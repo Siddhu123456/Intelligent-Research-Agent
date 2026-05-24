@@ -374,44 +374,17 @@ class TestReportTools:
             ReportTools
             .format_report(
                 title="AI Research",
-                query=(
-                    "Artificial Intelligence"
-                ),
-                abstract=(
-                    "AI abstract"
-                ),
-                summary=(
-                    "AI summary"
-                ),
-                findings=[
-                    "AI finding"
-                ],
-                analysis=(
-                    "AI analysis"
-                ),
+                query=("Artificial Intelligence"),
+                abstract=("AI abstract"),
+                report_body=("AI analysis"),
                 citations=citations,
             )
         )
 
-        assert (
-            "# Research Report"
-            in result
-        )
-
-        assert (
-            "## Title"
-            in result
-        )
-
-        assert (
-            "## References"
-            in result
-        )
-
-        assert (
-            "https://example.com"
-            in result
-        )
+        assert ("# AI Research" in result)
+        assert ("## Abstract" in result)
+        assert ("## References" in result)
+        assert ("https://example.com" in result)
 
     def test_format_report_duplicate_citations(
         self,
@@ -443,9 +416,7 @@ class TestReportTools:
                 title="AI Research",
                 query="AI",
                 abstract="Abstract",
-                summary="Summary",
-                findings=["Finding"],
-                analysis="Analysis",
+                report_body="Analysis",
                 citations=citations,
             )
         )
@@ -477,9 +448,7 @@ class TestReportTools:
                 title="AI Research",
                 query="AI",
                 abstract="Abstract",
-                summary="Summary",
-                findings=["Finding"],
-                analysis="Analysis",
+                report_body="Analysis",
                 citations=citations,
             )
         )

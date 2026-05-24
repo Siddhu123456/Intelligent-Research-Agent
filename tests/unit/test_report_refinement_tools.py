@@ -143,9 +143,10 @@ class TestReportRefinementTools:
                 )
             )
 
+        # invalid target should be corrected to first existing section
         assert (
             result["target_section"]
-            == "analysis_and_insights"
+            == "introduction"
         )
 
     @patch(

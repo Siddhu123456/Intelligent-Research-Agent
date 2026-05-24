@@ -38,4 +38,16 @@ class LLMFactory:
             api_key=settings.groq_api_key,
         )
     
+    @staticmethod
+    def create_ollama_llm(
+        temperature: float = 0.2,
+    ) -> ChatOllama:
+        """
+        Create a lightweight Ollama chat model instance.
+        """
+        return ChatOllama(
+            model="gemma:2b",
+            temperature=temperature,
+        )
+    
     

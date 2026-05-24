@@ -129,6 +129,7 @@ Conclusion content.
         report = (
             ReportSectionTools
             .reconstruct_report(
+                "Research Report",
                 sections,
                 section_order,
             )
@@ -157,6 +158,7 @@ Conclusion content.
         report = (
             ReportSectionTools
             .reconstruct_report(
+                "Research Report",
                 {},
                 [],
             )

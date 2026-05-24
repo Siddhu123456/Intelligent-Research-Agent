@@ -56,18 +56,19 @@ class TestReportChatTools:
         with patch(
             "tools.report_chat_tools.ChatPromptTemplate.from_messages",
             return_value=mock_prompt,
+        ), patch(
+            "tools.report_chat_tools.ReportVectorTools.semantic_report_search",
+            return_value=[{"section": "intro", "content": "AI is used in automation systems."}],
         ):
-            answer = (
-                ReportChatTools
-                .answer_report_question(
-                    report=(
-                        "AI is used in "
-                        "automation systems."
-                    ),
-                    question=(
-                        "What does AI improve?"
-                    ),
-                )
+            state = {
+                "session_id": "sess1",
+                "report_sections": {},
+                "compressed_report_context": "",
+            }
+            answer = ReportChatTools.answer_report_question(
+                state=state,
+                question=("What does AI improve?"),
+                conversation_context=(""),
             )
 
         assert (
@@ -83,22 +84,19 @@ class TestReportChatTools:
     ):
         """Test empty report handling."""
 
-        answer = (
-            ReportChatTools
-            .answer_report_question(
-                report="",
-                question=(
-                    "What is AI?"
-                ),
-            )
+        state = {"session_id": "s", "report_sections": {}, "compressed_report_context": ""}
+        # use a summary keyword so the method uses compressed_report_context
+        answer = ReportChatTools.answer_report_question(
+            state=state,
+            question=("Please provide a summary"),
+            conversation_context=(""),
         )
 
         assert (
             answer
             == (
-                "No active report is "
-                "available for question "
-                "answering."
+                "No relevant report context "
+                "was found for this question."
             )
         )
 
@@ -144,17 +142,15 @@ class TestReportChatTools:
         with patch(
             "tools.report_chat_tools.ChatPromptTemplate.from_messages",
             return_value=mock_prompt,
+        ), patch(
+            "tools.report_chat_tools.ReportVectorTools.semantic_report_search",
+            return_value=[{"section": "s", "content": "AI systems data"}],
         ):
-            answer = (
-                ReportChatTools
-                .answer_report_question(
-                    report=(
-                        "AI systems data"
-                    ),
-                    question=(
-                        "Give number"
-                    ),
-                )
+            state = {"session_id": "sess2", "report_sections": {}, "compressed_report_context": ""}
+            answer = ReportChatTools.answer_report_question(
+                state=state,
+                question=("Give number"),
+                conversation_context=(""),
             )
 
         assert isinstance(
@@ -217,17 +213,15 @@ class TestReportChatTools:
         with patch(
             "tools.report_chat_tools.ChatPromptTemplate.from_messages",
             return_value=mock_prompt,
+        ), patch(
+            "tools.report_chat_tools.ReportVectorTools.semantic_report_search",
+            return_value=[{"section": "s", "content": long_answer}],
         ):
-            answer = (
-                ReportChatTools
-                .answer_report_question(
-                    report=(
-                        "AI systems report"
-                    ),
-                    question=(
-                        "Explain AI"
-                    ),
-                )
+            state = {"session_id": "sess3", "report_sections": {}, "compressed_report_context": ""}
+            answer = ReportChatTools.answer_report_question(
+                state=state,
+                question=("Explain AI"),
+                conversation_context=(""),
             )
 
         assert (
@@ -284,17 +278,15 @@ class TestReportChatTools:
         with patch(
             "tools.report_chat_tools.ChatPromptTemplate.from_messages",
             return_value=mock_prompt,
+        ), patch(
+            "tools.report_chat_tools.ReportVectorTools.semantic_report_search",
+            return_value=[{"section": "s", "content": ""}],
         ):
-            answer = (
-                ReportChatTools
-                .answer_report_question(
-                    report=(
-                        "Research data"
-                    ),
-                    question=(
-                        "Explain findings"
-                    ),
-                )
+            state = {"session_id": "sess4", "report_sections": {}, "compressed_report_context": ""}
+            answer = ReportChatTools.answer_report_question(
+                state=state,
+                question=("Explain findings"),
+                conversation_context=(""),
             )
 
         assert (

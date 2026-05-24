@@ -495,6 +495,80 @@ class ReportTools:
         return refined_report.strip()
 
     @staticmethod
+    def generate_summary(
+        query: str,
+        findings: list[str],
+    ) -> str:
+        """
+        Generate a concise research summary from findings.
+        """
+        if not findings:
+            return (
+                "No sufficient findings "
+                "were available to generate "
+                "a research summary."
+            )
+
+        llm = (
+            LLMFactory
+            .create_qwen_llm(
+                temperature=0.1,
+            )
+        )
+
+        findings_text = "\n".join(findings)
+
+        prompt = (
+            ChatPromptTemplate
+            .from_messages(
+                [
+                    (
+                        "system",
+                        (
+                            "You are an expert research summarizer.\n\n"
+                            "Return ONLY valid JSON with a single 'summary' field."
+                        ),
+                    ),
+                    (
+                        "human",
+                        (
+                            "Research Topic:\n"
+                            "{query}\n\n"
+                            "Findings:\n"
+                            "{findings}"
+                        ),
+                    ),
+                ]
+            )
+        )
+
+        chain = (
+            prompt
+            | llm
+        )
+
+        response = chain.invoke(
+            {
+                "query": query,
+                "findings": findings_text,
+            }
+        )
+
+        parsed = (
+            JSONParser.safe_extract(
+                content=(response.content),
+                fallback={"summary": findings_text},
+            )
+        )
+
+        summary = parsed.get("summary", findings_text)
+
+        if not isinstance(summary, str):
+            summary = str(summary)
+
+        return summary.strip()
+
+    @staticmethod
     def format_report(
         title: str,
         query: str,

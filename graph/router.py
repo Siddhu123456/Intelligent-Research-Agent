@@ -19,17 +19,17 @@ class GraphRouter:
         state: ResearchState,
     ) -> str:
 
-        workflow_decision = (
-            state[
-                "workflow_decision"
-            ]
-        )
+        workflow_decision = state.get("workflow_decision", "")
 
-        current_step = (
-            state[
-                "current_step"
-            ]
-        )
+        # Early error handling
+        if state.get("error"):
+            return "error_recovery"
+
+        # Low-confidence -> retry retrieval
+        if state.get("low_confidence"):
+            return "retrieval"
+
+        current_step = state.get("current_step", "")
 
         # Error termination
 
@@ -106,7 +106,7 @@ class GraphRouter:
 
         routing_map = {
             CurrentStep.START.value:
-                "context",
+                "query_decomposition",
 
             CurrentStep.CONTEXTUALIZED.value:
                 "query_decomposition",

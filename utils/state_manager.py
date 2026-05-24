@@ -135,6 +135,11 @@ class StateManager:
             )
         )
 
+        # Re-apply persistent state so defaults do not overwrite preserved values
+        state.update(
+            persistent_state,
+        )
+
         # Preserve report workspace
         # for conversational workflows
 
