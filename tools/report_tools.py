@@ -18,8 +18,8 @@ from utils.llm_factory import (
 class ReportTools:
     """Tools for report generation."""
 
-    MAX_SUMMARY_LENGTH = 4000
-    
+    MAX_REPORT_BODY_LENGTH = 12000
+
     @staticmethod
     def generate_report_metadata(
         query: str,
@@ -126,14 +126,14 @@ class ReportTools:
             )
         )
 
-        # Defensive normalization
-
         if not isinstance(
             title,
             str,
         ):
 
-            title = str(title)
+            title = str(
+                title
+            )
 
         if not isinstance(
             abstract,
@@ -145,31 +145,37 @@ class ReportTools:
             )
 
         return {
-            "title": title.strip(),
+            "title": (
+                title.strip()
+            ),
             "abstract": (
                 abstract.strip()
             ),
         }
 
     @staticmethod
-    def generate_summary(
+    def generate_report_body(
         query: str,
         findings: list[str],
+        analysis: str,
     ) -> str:
-        """Generate executive summary."""
+        """
+        Generate fully dynamic
+        research report body.
+        """
 
         if not findings:
 
             return (
                 "No sufficient findings "
                 "were available to generate "
-                "a research summary."
+                "a research report."
             )
 
         llm = (
             LLMFactory
             .create_qwen_llm(
-                temperature=0.2,
+                temperature=0.1,
             )
         )
 
@@ -185,34 +191,103 @@ class ReportTools:
                         "system",
                         (
                             "You are an expert "
-                            "research summarization "
-                            "agent.\n\n"
+                            "research report writer.\n\n"
 
-                            "Generate a concise and "
-                            "professional executive "
-                            "summary.\n\n"
+                            "Generate a professional "
+                            "research report body.\n\n"
 
-                            "Rules:\n"
+                            "IMPORTANT RULES:\n"
+                            "- generate natural "
+                            "section structures\n"
+                            "- create sections dynamically\n"
+                            "- structure the report using markdown headings\n"
+                            "- generate multiple topic-specific sections\n"
+                            "- ONLY use ## for major top-level sections\n"
+                            "- use ### for ALL subsections\n"
+                            "- NEVER generate nested ## headings\n"
+                            "- maintain proper markdown hierarchy\n"
+                            "- subsection headings MUST use ###\n"
+                            "- avoid writing the entire report as one block\n"
+                            "- separate technical concepts into distinct sections\n"
+                            "- organize the report professionally\n"
+                            "- create clear thematic segmentation\n"
+                            "- include technical explanations "
+                            "when relevant\n"
+                            "- include practical applications "
+                            "when relevant\n"
+                            "- include risks and limitations "
+                            "when relevant\n"
+                            "- include future trends "
+                            "when relevant\n"
                             "- preserve factual accuracy\n"
                             "- avoid hallucinations\n"
-                            "- focus on important findings\n"
-                            "- summarize technical insights\n"
-                            "- keep the summary concise\n"
-                            "- return only valid JSON\n\n"
+                            "- maintain professional tone\n"
+                            "- do not generate references section\n"
+                            "- do not generate title section\n"
+                            "- do not generate abstract section\n"
+                            "- introduction is already handled\n"
+                            "- use clean markdown formatting\n"
+                            "- create topic-specific sections\n"
+                            "- avoid generic templates\n\n"
+
+                            "The report structure should adapt "
+                            "naturally to the topic.\n\n"
+                            
+                            "The report MUST contain:\n"
+                            "- multiple markdown sections\n"
+                            "- topic-specific headings\n"
+                            "- clear content organization\n"
+                            "- professional research structure\n"
+
+                            "Avoid producing one continuous paragraph block.\n\n"
+                            
+                            "The markdown hierarchy MUST remain valid.\n"
+                            "Do not create top-level sections inside other sections.\n"
+                            "Nested topics must use ### headings.\n\n"
+                            
+                            "GOOD EXAMPLE:\n\n"
+
+                            "## Neural Interfaces\n\n"
+
+                            "Main section content.\n\n"
+
+                            "### Flexible Electrodes\n\n"
+
+                            "Subsection content.\n\n"
+
+                            "### Signal Processing\n\n"
+
+                            "Subsection content.\n\n"
+
+                            "BAD EXAMPLE:\n\n"
+
+                            "## Neural Interfaces\n\n"
+
+                            "content...\n\n"
+
+                            "## Flexible Electrodes\n\n"
+
+                            "content...\n\n"
+
+                            "Return ONLY valid JSON.\n\n"
 
                             "Format:\n"
                             "{{\n"
-                            '  "summary": "..."\n'
+                            '  "report_body": "..."\n'
                             "}}"
                         ),
                     ),
                     (
                         "human",
                         (
-                            "Research Query:\n"
+                            "Research Topic:\n"
                             "{query}\n\n"
+
                             "Research Findings:\n"
-                            "{findings}"
+                            "{findings}\n\n"
+
+                            "Analysis:\n"
+                            "{analysis}"
                         ),
                     ),
                 ]
@@ -228,6 +303,7 @@ class ReportTools:
             {
                 "query": query,
                 "findings": findings_text,
+                "analysis": analysis,
             }
         )
 
@@ -237,37 +313,35 @@ class ReportTools:
                     response.content
                 ),
                 fallback={
-                    "summary": findings_text,
+                    "report_body": (
+                        findings_text
+                    ),
                 },
             )
         )
 
-        summary = (
+        report_body = (
             parsed_response.get(
-                "summary",
+                "report_body",
                 findings_text,
             )
         )
 
-        # Defensive normalization
-
         if not isinstance(
-            summary,
+            report_body,
             str,
         ):
 
-            summary = str(
-                summary
+            report_body = str(
+                report_body
             )
 
         return (
-            summary.strip()[
+            report_body.strip()[
                 :ReportTools
-                .MAX_SUMMARY_LENGTH
+                .MAX_REPORT_BODY_LENGTH
             ]
         )
-        
-    
 
     @staticmethod
     def refine_existing_report(
@@ -279,7 +353,7 @@ class ReportTools:
         llm = (
             LLMFactory
             .create_qwen_llm(
-                temperature=0.2,
+                temperature=0.1,
             )
         )
 
@@ -306,13 +380,20 @@ class ReportTools:
                             "of rewriting everything\n"
                             "- integrate the refinement "
                             "naturally\n"
-                            "- maintain professional "
-                            "report structure\n"
+                            "- maintain coherent organization\n"
+                            "- allow natural restructuring "
+                            "when useful\n"
                             "- preserve factual accuracy\n"
                             "- avoid hallucinations\n"
                             "- avoid removing valuable "
                             "existing sections\n"
-                            "- keep the report coherent\n\n"
+                            "- keep the report coherent\n"
+                            "- preserve markdown hierarchy\n"
+                            "- ONLY use ## for top-level sections\n"
+                            "- use ### for subsections\n"
+                            "- NEVER generate nested ## headings\n"
+                            "- preserve existing heading organization\n"
+                            "- maintain proper markdown nesting\n\n"
 
                             "The refinement may request:\n"
                             "- additional sections\n"
@@ -320,7 +401,29 @@ class ReportTools:
                             "- more technical depth\n"
                             "- simplification\n"
                             "- practical applications\n"
-                            "- better conclusions\n\n"
+                            "- comparative analysis\n"
+                            "- ethical discussions\n"
+                            "- future trends\n\n"
+                            
+                            "GOOD EXAMPLE:\n\n"
+
+                            "## Neural Interfaces\n\n"
+
+                            "content...\n\n"
+
+                            "### Flexible Electrodes\n\n"
+
+                            "new subsection content\n\n"
+
+                            "BAD EXAMPLE:\n\n"
+
+                            "## Neural Interfaces\n\n"
+
+                            "content...\n\n"
+
+                            "## Flexible Electrodes\n\n"
+
+                            "content...\n\n"
 
                             "Return ONLY valid JSON.\n\n"
 
@@ -373,31 +476,36 @@ class ReportTools:
             )
         )
 
-        return (
+        refined_report = (
             parsed_response.get(
                 "refined_report",
                 existing_report,
             )
         )
 
+        if not isinstance(
+            refined_report,
+            str,
+        ):
+
+            refined_report = str(
+                refined_report
+            )
+
+        return refined_report.strip()
+
     @staticmethod
     def format_report(
         title: str,
         query: str,
         abstract: str,
-        summary: str,
-        findings: list[str],
-        analysis: str,
+        report_body: str,
         citations: list[Citation],
     ) -> str:
-        """Format professional research report."""
-
-        findings_text = "\n".join(
-            [
-                f"- {finding}"
-                for finding in findings
-            ]
-        )
+        """
+        Format flexible
+        professional report.
+        """
 
         seen_urls = set()
 
@@ -438,12 +546,8 @@ class ReportTools:
             formatted_references
         )
 
-        return f"""
-# Research Report
-
-## Title
-
-{title}
+        report = f"""
+# {title}
 
 ## Abstract
 
@@ -451,45 +555,22 @@ class ReportTools:
 
 ## Introduction
 
-This report provides a structured research analysis on:
+This report presents a detailed research analysis on:
 
 "{query}"
 
-The research examines major developments, technical foundations, practical applications, emerging trends, and critical insights associated with the topic.
+The objective of this research is to explore the topic comprehensively using retrieved findings, technical analysis, practical insights, and supporting evidence gathered from multiple sources.
 
-The analysis is based on information retrieved from multiple research sources, including web-based resources, academic references, and contextual analytical findings.
+{report_body}
+"""
 
-The objective of this report is to synthesize relevant evidence into a professional and coherent research document that highlights key findings, technical observations, and broader implications related to the subject area.
+        if citations_text.strip():
 
-## Executive Summary
-
-{summary}
-
-## Background & Context
-
-This report explores the topic:
-"{query}"
-
-The analysis focuses on retrieved research findings, technical insights, practical implications, and relevant evidence gathered from multiple sources.
-
-## Key Findings
-
-{findings_text}
-
-## Analysis & Insights
-
-{analysis}
-
-## Conclusion
-
-The research findings provide important insights into the topic:
-"{query}"
-
-The report highlights key technical, practical, and conceptual observations derived from the analyzed sources.
-
-While the retrieved evidence provides useful understanding of the topic, additional research may further improve coverage and depth in rapidly evolving areas.
+            report += f"""
 
 ## References
 
 {citations_text}
 """
+
+        return report.strip()

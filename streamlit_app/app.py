@@ -40,6 +40,47 @@ st.markdown(
     .empty-state { text-align: center; padding: 5rem 2rem; }
     .empty-state-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.4; }
     .empty-state p { font-size: 0.88rem; color: #aaa; }
+    
+    h1 {
+        font-size: 2.7rem !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 2rem !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+        letter-spacing: -0.03em !important;
+    }
+
+    h2 {
+        font-size: 1.55rem !important;
+        margin-top: 2.2rem !important;
+        margin-bottom: 1rem !important;
+        font-weight: 700 !important;
+        padding-bottom: 0.35rem !important;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    h3 {
+        font-size: 1rem !important;
+        margin-top: 1.3rem !important;
+        margin-bottom: 0.45rem !important;
+        font-weight: 600 !important;
+        color: #d0d0d0 !important;
+        opacity: 0.92;
+    }
+
+    p {
+        font-size: 0.98rem !important;
+        line-height: 1.75 !important;
+    }
+
+    ul {
+        padding-left: 1.2rem !important;
+    }
+
+    li {
+        margin-bottom: 0.45rem !important;
+        line-height: 1.65 !important;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -66,6 +107,7 @@ for key, default in [
     ("refinement_input", ""),
     ("chat_input",       ""),
     ("last_action",      ""),
+    ("research_query",   ""),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -176,7 +218,13 @@ with st.sidebar:
             VectorStoreManager.clear_persisted_data()
         except Exception:
             pass
-        for key in ("state", "refinement_input", "chat_input", "last_action"):
+        for key in (
+            "state",
+            "refinement_input",
+            "chat_input",
+            "last_action",
+            "research_query",
+        ):
             st.session_state[key] = None if key == "state" else ""
         st.rerun()
 
@@ -189,7 +237,18 @@ with st.sidebar:
     )
     if report_history:
         for item in reversed(report_history):
-            label = str(item.get("description", item.get("query", "Unknown")))
+            label = str(
+                item.get(
+                    "title",
+                    item.get(
+                        "description",
+                        item.get(
+                            "query",
+                            "Unknown",
+                        ),
+                    ),
+                )
+            )
             ts    = str(item.get("timestamp", ""))
             st.markdown(
                 f'<div class="history-item"><h4>{label[:40]}…</h4>'
@@ -204,38 +263,6 @@ with st.sidebar:
 st.title("AI Research Workspace")
 st.caption("Multi-source analysis · Professional reports · Iterative refinement")
 st.divider()
-
-# ── Research input ────────────────────────────────────────────────────────────
-col_input, col_btn = st.columns([5, 1])
-with col_input:
-    query = st.text_input(
-        "Research Topic",
-        placeholder="e.g. Quantum Computing Applications in Drug Discovery",
-        label_visibility="collapsed",
-    )
-with col_btn:
-    generate_clicked = st.button("Generate →", use_container_width=True)
-
-if generate_clicked:
-    if not query.strip():
-        st.warning("Please enter a research topic.")
-    else:
-        try:
-            if st.session_state.state is None:
-                wf_state = StateFactory.create_initial_state(query=query)
-            else:
-                wf_state = StateManager.prepare_next_workflow(
-                    previous_state=st.session_state.state,
-                    query=query,
-                    mode="REPORT_GENERATION",
-                )
-            result = run_workflow(wf_state, "Generating report…")
-            st.session_state.state       = result
-            st.session_state.last_action = "report_generated"
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error: {e}")
-
 
 # ── Active report workspace ───────────────────────────────────────────────────
 active_report = (
@@ -256,6 +283,52 @@ if not isinstance(
         active_report
     )
 
+# ── Research input ────────────────────────────────────────────────────────────
+col_input, col_btn = st.columns([5, 1])
+with col_input:
+    query = st.text_input(
+        "Research Topic",
+
+        value=(
+            st.session_state
+            .research_query
+        ),
+
+        placeholder=(
+            "e.g. Quantum Computing "
+            "Applications in Drug Discovery"
+        ),
+
+        label_visibility="collapsed",
+
+        disabled=(
+            bool(active_report)
+        ),
+    )
+with col_btn:
+    generate_clicked = st.button("Generate →", use_container_width=True)
+
+if generate_clicked:
+    if not query.strip():
+        st.warning("Please enter a research topic.")
+    else:
+        try:
+            if st.session_state.state is None:
+                wf_state = StateFactory.create_initial_state(query=query)
+            else:
+                wf_state = StateManager.prepare_next_workflow(
+                    previous_state=st.session_state.state,
+                    query=query,
+                    mode="REPORT_GENERATION",
+                )
+            result = run_workflow(wf_state, "Generating report…")
+            st.session_state.state       = result
+            st.session_state["research_query"] = query
+            st.session_state.last_action = "report_generated"
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error: {e}")
+
 if st.session_state.state and active_report:
     st.divider()
     tab_report, tab_chat, tab_history = st.tabs(["📄 Report", "💬 Chat", "🕓 Versions"])
@@ -266,8 +339,10 @@ if st.session_state.state and active_report:
             st.success("✓ Report refined successfully.")
             st.session_state.last_action = ""
 
-        st.markdown('<p class="section-label">Generated Report</p>', unsafe_allow_html=True)
-        st.markdown(active_report)
+        st.markdown(
+            active_report,
+            unsafe_allow_html=True,
+        )
         st.divider()
 
         # Export
@@ -295,7 +370,17 @@ if st.session_state.state and active_report:
             st.download_button(
                 label="⬇ Download PDF",
                 data=generated_pdf,
-                file_name="research_report.pdf",
+                file_name=(
+                    st.session_state.state
+                    .get(
+                        "run_metadata",
+                        {},
+                    )
+                    .get(
+                        "generated_pdf_filename",
+                        "research_report.pdf",
+                    )
+                ),
                 mime="application/pdf",
                 use_container_width=True,
             )
@@ -405,11 +490,28 @@ if st.session_state.state and active_report:
             st.caption(f"{len(version_history)} version(s) saved")
 
             for idx, version in enumerate(reversed(version_history), start=1):
-                desc        = str(version.get("description", version.get("mode", "Unknown")))
+                title = str(
+                    version.get(
+                        "title",
+                        "Research Report",
+                    )
+                )
+
+                desc = str(
+                    version.get(
+                        "description",
+                        version.get(
+                            "mode",
+                            "Unknown",
+                        ),
+                    )
+                )
                 ts          = str(version.get("timestamp", ""))
                 report_text = str(version.get("report", ""))
 
-                with st.expander(f"Version {idx}  ·  {desc}  ·  {ts}"):
+                with st.expander(
+                    f"{title} · Version {idx} · {ts}"
+                ):
                     if version.get("updated_section"):
                         st.caption(f"Updated section: {version['updated_section']}")
                         st.divider()
@@ -424,6 +526,18 @@ if st.session_state.state and active_report:
                         try:
                             temp_state = dict(st.session_state.state)
                             temp_state["active_report"] = report_text
+                            temp_state[
+                                "report_title"
+                            ] = version.get(
+                                "title",
+                                temp_state.get(
+                                    "report_title",
+                                    temp_state.get(
+                                        "query",
+                                        "Research Report",
+                                    ),
+                                ),
+                            )
                             wf_state = StateManager.prepare_next_workflow(
                                 previous_state=temp_state,
                                 query=temp_state["query"],
@@ -433,7 +547,12 @@ if st.session_state.state and active_report:
                             generated_pdf = result.get("generated_pdf")
                             if generated_pdf:
                                 st.success("✓ PDF generated successfully.")
-                                safe_name = desc.lower().replace(" ", "_").replace("/", "_")
+                                safe_name = (
+                                    title
+                                    .lower()
+                                    .replace(" ", "_")
+                                    .replace("/", "_")
+                                )
                                 st.download_button(
                                     label="⬇ Download PDF",
                                     data=generated_pdf,

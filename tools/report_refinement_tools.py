@@ -123,7 +123,11 @@ class ReportRefinementTools:
                     "modify_section",
 
                     "target_section":
-                    "analysis_and_insights",
+                    (
+                        existing_sections[0]
+                        if existing_sections
+                        else ""
+                    ),
                 },
             )
         )
@@ -153,7 +157,9 @@ class ReportRefinementTools:
             parsed_response[
                 "target_section"
             ] = (
-                "analysis_and_insights"
+                existing_sections[0]
+                if existing_sections
+                else ""
             )
 
         return parsed_response
@@ -185,7 +191,7 @@ class ReportRefinementTools:
         llm = (
             LLMFactory
             .create_qwen_llm(
-                temperature=0.2,
+                temperature=0.1,
             )
         )
 
@@ -257,7 +263,40 @@ class ReportRefinementTools:
                             "- preserve technical accuracy\n"
                             "- avoid hallucinations\n"
                             "- preserve formatting consistency\n"
+                            "- preserve markdown hierarchy\n"
+                            "- ONLY use ## for top-level sections\n"
+                            "- use ### for subsections\n"
+                            "- NEVER generate nested ## headings\n"
+                            "- preserve existing section nesting\n"
+                            "- maintain proper markdown heading consistency\n"
+                            "- preserve section organization whenever possible\n"
+                            "- avoid restructuring the entire section unnecessarily\n"
+                            "- integrate new information naturally\n"
                             "- return ONLY valid JSON\n\n"
+                            
+                            "GOOD EXAMPLE:\n\n"
+
+                            "## Neural Interfaces\n\n"
+
+                            "Main section content.\n\n"
+
+                            "### Flexible Electrodes\n\n"
+
+                            "Subsection content.\n\n"
+
+                            "### Signal Processing\n\n"
+
+                            "Subsection content.\n\n"
+
+                            "BAD EXAMPLE:\n\n"
+
+                            "## Neural Interfaces\n\n"
+
+                            "content...\n\n"
+
+                            "## Flexible Electrodes\n\n"
+
+                            "content...\n\n"
 
                             "Format:\n"
                             "{{\n"
@@ -357,7 +396,7 @@ class ReportRefinementTools:
         llm = (
             LLMFactory
             .create_qwen_llm(
-                temperature=0.2,
+                temperature=0.1,
             )
         )
 
@@ -376,8 +415,14 @@ class ReportRefinementTools:
 
                             "IMPORTANT RULES:\n"
                             "- generate section content only\n"
-                            "- no markdown titles\n"
+                            "- generate subsection-ready content\n"
+                            "- use ### for subsection headings if needed\n"
+                            "- NEVER generate ## headings\n"
+                            "- preserve markdown hierarchy\n"
                             "- concise but informative\n"
+                            "- organize content clearly\n"
+                            "- preserve professional section structure\n"
+                            "- avoid giant paragraph blocks\n"
                             "- professional tone\n"
                             "- avoid hallucinations\n"
                             "- return ONLY valid JSON\n\n"
@@ -510,7 +555,7 @@ class ReportRefinementTools:
 
                             "Format:\n"
                             "{{\n"
-                            '  "insert_before": "conclusion"\n'
+                            ' "insert_before": "conclusion"\n'
                             "}}"
                         ),
                     ),
@@ -552,7 +597,9 @@ class ReportRefinementTools:
                 ),
                 fallback={
                     "insert_before":
-                    "conclusion",
+                    existing_sections[-1]
+                    if existing_sections
+                    else "",
                 },
             )
         )
