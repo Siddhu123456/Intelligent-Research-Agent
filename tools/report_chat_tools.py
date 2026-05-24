@@ -48,8 +48,6 @@ class ReportChatTools:
                 {},
             )
         )
-        
-        print(state["report_sections"])
 
         compressed_report_context = (
             state.get(
@@ -96,7 +94,7 @@ class ReportChatTools:
             "main findings",
         ]
 
-        # SECTION MODE
+        # SECTION MODE 
 
         if any(
             keyword in lowered_question
@@ -125,7 +123,7 @@ class ReportChatTools:
                 )
             )
 
-        # SUMMARY MODE
+        #  SUMMARY MODE
 
         elif any(
             keyword in lowered_question
@@ -209,38 +207,39 @@ class ReportChatTools:
                             "Use BOTH to answer "
                             "user questions accurately.\n\n"
 
-                            "IMPORTANT RULES:\n"
+                            "IMPORTANT RULES:\n\n"
 
-                            "- answer ONLY from the "
+                            "- answer ONLY using the "
                             "provided report context\n"
 
                             "- do not hallucinate\n"
 
                             "- do not invent facts\n"
 
-                            "- if information is missing, "
-                            "clearly say so\n"
-
                             "- preserve technical accuracy\n"
 
                             "- provide concise and "
                             "professional answers\n"
 
-                            "- infer relationships only "
-                            "when strongly supported\n"
+                            "- maintain conversational "
+                            "continuity\n"
+
+                            "- use conversation context "
+                            "to resolve references like "
+                            "'it', 'they', 'this', "
+                            "'that'\n"
 
                             "- mention relevant section "
                             "names when appropriate\n"
 
-                            "- optimize for grounded "
-                            "conversational Q&A\n\n"
+                            "- if relevant information "
+                            "exists in the retrieved "
+                            "sections, answer directly\n"
 
-                            "- use conversation context "
-                            "to resolve references like:\n"
-                            "  it, they, this, that\n"
-
-                            "- maintain conversational "
-                            "continuity\n\n"
+                            "- only say information is "
+                            "unavailable if it is truly "
+                            "missing from ALL provided "
+                            "report context\n"
 
                             "- if the question asks about "
                             "report structure or sections, "
@@ -249,20 +248,6 @@ class ReportChatTools:
                             "- if the question asks for "
                             "summary or overview, use "
                             "compressed report summary\n"
-                            
-                            "- if section information is "
-                            "explicitly available in the "
-                            "context, directly use it\n"
-
-                            "- otherwise use semantically "
-                            "retrieved report context\n\n"
-
-                            "Return ONLY valid JSON.\n\n"
-
-                            "Format:\n"
-                            "{{\n"
-                            '  "answer": "..."\n'
-                            "}}"
                         ),
                     ),
                     (
@@ -306,28 +291,65 @@ class ReportChatTools:
             }
         )
 
+        raw_response = (
+            response.content
+        )
+
+        # Defensive normalization
+
+        if not isinstance(
+            raw_response,
+            str,
+        ):
+
+            raw_response = str(
+                raw_response
+            )
+
+        raw_response = (
+            raw_response.strip()
+        )
+
+        # Try structured extraction first
+
         parsed_response = (
             JSONParser.safe_extract(
-                content=(
-                    response.content
-                ),
-                fallback={
-                    "answer": (
-                        "Unable to generate "
-                        "a grounded answer "
-                        "from the report "
-                        "workspace context."
-                    ),
-                },
+                content=raw_response,
+                fallback=None,
             )
         )
 
-        answer = (
-            parsed_response.get(
-                "answer",
-                "",
+        # Use parsed JSON answer
+        # if available
+
+        if (
+            isinstance(
+                parsed_response,
+                dict,
             )
-        )
+            and parsed_response.get(
+                "answer"
+            )
+        ):
+
+            answer = str(
+                parsed_response.get(
+                    "answer",
+                    "",
+                )
+            )
+
+        # Otherwise fallback to
+        # cleaned raw response
+
+        else:
+
+            answer = (
+                JSONParser
+                .clean_response(
+                    raw_response
+                )
+            )
 
         # Defensive normalization
 

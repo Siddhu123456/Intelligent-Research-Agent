@@ -21,6 +21,7 @@ class StateManager:
         "conversation_summary",
         "report_version_history",
         "active_report",
+        "report_title",
         "compressed_report_context",
         "report_sections",
         "report_section_order",

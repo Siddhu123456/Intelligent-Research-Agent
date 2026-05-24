@@ -4,6 +4,7 @@ from langchain_core.documents import (
     Document as LangchainDocument,
 )
 
+from utils.reranker_factory import RerankerFactory
 from utils.vector_store import (
     VectorStoreManager,
 )
@@ -133,11 +134,13 @@ class ReportVectorTools:
     def semantic_report_search(
         query: str,
         session_id: str,
-        top_k: int = 4,
+        top_k: int = 5,
+        retrieval_k: int = 15,
     ) -> list[dict]:
         """
         Perform semantic search
-        over generated report.
+        with reranking over
+        generated report sections.
         """
 
         vector_store = (
@@ -147,10 +150,12 @@ class ReportVectorTools:
             )
         )
 
+        # Initial broad semantic retrieval
+
         results = (
             vector_store.similarity_search(
                 query=query,
-                k=top_k,
+                k=retrieval_k,
                 filter={
                     "chunk_type":
                         "report",
@@ -158,11 +163,34 @@ class ReportVectorTools:
             )
         )
 
-        formatted_results = []
+        if not results:
+
+            return []
+
+        # Convert vector results into internal documents
+
+        documents = []
 
         for result in results:
 
-            formatted_results.append(
+            content = (
+                result.page_content
+            )
+
+            if not isinstance(
+                content,
+                str,
+            ):
+
+                content = str(
+                    content
+                )
+
+            if not content.strip():
+
+                continue
+
+            documents.append(
                 {
                     "section":
                         result.metadata.get(
@@ -171,8 +199,116 @@ class ReportVectorTools:
                         ),
 
                     "content":
-                        result.page_content,
+                        content,
+
+                    "document":
+                        result,
                 }
             )
 
-        return formatted_results
+        if not documents:
+
+            return []
+
+        # Prepare reranker inputs
+
+        reranker = (
+            RerankerFactory
+            .get_reranker()
+        )
+
+        pairs = [
+            (
+                query,
+                document["content"],
+            )
+            for document in documents
+        ]
+
+        scores = reranker.predict(
+            pairs,
+        )
+
+        # Combine scores with documents
+
+        scored_documents = list(
+            zip(
+                documents,
+                scores,
+            )
+        )
+
+        scored_documents.sort(
+            key=lambda item: item[1],
+            reverse=True,
+        )
+
+        # Filter weak matches
+
+        MIN_SCORE = 0.15
+
+        reranked_results = []
+
+        for (
+            document,
+            score,
+        ) in scored_documents:
+
+            if score < MIN_SCORE:
+
+                continue
+
+            reranked_results.append(
+                {
+                    "section":
+                        document[
+                            "section"
+                        ],
+
+                    "content":
+                        document[
+                            "content"
+                        ],
+
+                    "score":
+                        float(score),
+                }
+            )
+
+            if (
+                len(
+                    reranked_results
+                )
+                >= top_k
+            ):
+
+                break
+
+        # Fallback if all scores filtered
+
+        if not reranked_results:
+
+            reranked_results = [
+                {
+                    "section":
+                        document[
+                            "section"
+                        ],
+
+                    "content":
+                        document[
+                            "content"
+                        ],
+
+                    "score":
+                        float(score),
+                }
+                for (
+                    document,
+                    score,
+                ) in scored_documents[
+                    :top_k
+                ]
+            ]
+
+        return reranked_results

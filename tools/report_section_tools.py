@@ -41,6 +41,16 @@ class ReportSectionTools:
         )
 
         report = report.strip()
+        
+        # Remove persistent title
+        # before section extraction.
+
+        report = re.sub(
+            r"(?m)^#\s+.*?\n+",
+            "",
+            report,
+            count=1,
+        )
 
         if not report:
 
@@ -158,6 +168,7 @@ class ReportSectionTools:
 
     @staticmethod
     def reconstruct_report(
+        report_title: str,
         sections: dict[str, str],
         section_order: list[str],
     ) -> str:
@@ -165,6 +176,14 @@ class ReportSectionTools:
         Reconstruct full report
         while preserving markdown
         hierarchy safely.
+
+        Final structure:
+
+        # Report Title
+
+        ## Section
+
+        ### Subsection
         """
 
         if not sections:
@@ -172,6 +191,36 @@ class ReportSectionTools:
             return ""
 
         report_parts = []
+
+        # Persistent document title
+
+        if (
+            report_title
+            and isinstance(
+                report_title,
+                str,
+            )
+            and report_title.strip()
+        ):
+
+            cleaned_title = (
+                report_title.strip()
+            )
+
+            # Prevent accidental duplicate
+            # markdown heading markers.
+
+            cleaned_title = re.sub(
+                r"^#+\s*",
+                "",
+                cleaned_title,
+            )
+
+            report_parts.append(
+                f"# {cleaned_title}\n"
+            )
+
+        # Reconstruct sections
 
         for section_name in (
             section_order
@@ -206,9 +255,74 @@ class ReportSectionTools:
 
             formatted_title = (
                 section_name
-                .replace("_", " ")
+                .replace(
+                    "_",
+                    " ",
+                )
                 .title()
             )
+
+            # Remove accidental
+            # duplicated inline titles
+            #
+            # Example:
+            #
+            # ## Conclusion
+            # Conclusion
+            #
+            # content...
+
+            lines = (
+                content.splitlines()
+            )
+
+            if lines:
+
+                first_line = (
+                    lines[0]
+                    .strip()
+                    .lower()
+                )
+
+                normalized_title = (
+                    formatted_title
+                    .strip()
+                    .lower()
+                )
+
+                if (
+                    first_line
+                    == normalized_title
+                ):
+
+                    content = "\n".join(
+                        lines[1:]
+                    ).strip()
+                    
+            # Prevent accidental
+            # nested ## headings
+            #
+            # Convert:
+            # ## Something
+            #
+            # INTO:
+            # ### Something
+            #
+            # INSIDE section content.
+
+            content = re.sub(
+                r"(?m)^##\s+",
+                "### ",
+                content,
+            )
+
+            # Ensure spacing consistency
+
+            content = re.sub(
+                r"\n{3,}",
+                "\n\n",
+                content,
+            ).strip()
 
             report_parts.append(
                 (
@@ -218,9 +332,22 @@ class ReportSectionTools:
                 )
             )
 
-        return "\n".join(
-            report_parts
-        ).strip()
+        reconstructed_report = (
+            "\n".join(
+                report_parts
+            )
+            .strip()
+        )
+
+        # Final spacing cleanup
+
+        reconstructed_report = re.sub(
+            r"\n{3,}",
+            "\n\n",
+            reconstructed_report,
+        )
+
+        return reconstructed_report
 
     @staticmethod
     def get_section_order(
@@ -235,45 +362,78 @@ class ReportSectionTools:
 
             return []
 
-        preferred_order = [
-            "abstract",
-            "introduction",
-            "background",
-            "technical_foundations",
-            "methodology",
-            "applications",
-            "analysis",
-            "ethical_considerations",
-            "security_considerations",
-            "limitations",
-            "future_trends",
-            "recommendations",
-            "conclusion",
-            "references",
-        ]
+        intro_sections = []
 
-        ordered_sections = []
+        body_sections = []
 
-        for section in (
-            preferred_order
-        ):
-
-            if section in sections:
-
-                ordered_sections.append(
-                    section
-                )
+        ending_sections = []
 
         for section in sections:
 
-            if (
+            normalized = (
                 section
-                not in ordered_sections
-            ):
+                .strip()
+                .lower()
+            )
 
-                ordered_sections.append(
+            # INTRODUCTION-TYPE
+
+            if normalized in {
+                "abstract",
+                "introduction",
+                "executive_summary",
+                "background",
+                "background_and_context",
+            }:
+
+                intro_sections.append(
                     section
                 )
+
+            # ENDING-TYPE
+
+            elif normalized in {
+                "conclusion",
+                "future_directions",
+                "future_trends",
+                "recommendations",
+                "limitations",
+                "references",
+            }:
+
+                ending_sections.append(
+                    section
+                )
+
+            # EVERYTHING ELSE
+            # becomes BODY section
+
+            else:
+
+                body_sections.append(
+                    section
+                )
+
+        # References always last
+
+        references = [
+            s
+            for s in ending_sections
+            if s == "references"
+        ]
+
+        ending_sections = [
+            s
+            for s in ending_sections
+            if s != "references"
+        ]
+
+        ordered_sections = (
+            intro_sections
+            + body_sections
+            + ending_sections
+            + references
+        )
 
         return ordered_sections
 

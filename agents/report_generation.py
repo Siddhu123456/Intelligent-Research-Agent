@@ -1,3 +1,5 @@
+import re
+
 from langsmith import (
     traceable,
 )
@@ -62,6 +64,15 @@ class ReportGenerationAgent:
             "report_version_history"
         ].append(
             {
+                "title": (
+                    state.get(
+                        "report_title",
+                        state.get(
+                            "query",
+                            "Research Report",
+                        ),
+                    )
+                ),
                 "query": (
                     state["query"]
                 ),
@@ -109,6 +120,10 @@ class ReportGenerationAgent:
         report_title = (
             metadata["title"]
         )
+        
+        state[
+            "report_title"
+        ] = report_title
 
         abstract = (
             metadata["abstract"]
@@ -176,6 +191,13 @@ class ReportGenerationAgent:
                 "",
             )
         )
+        
+        existing_title = (
+            state.get(
+                "report_title",
+                state["query"],
+            )
+        )
 
         refinement_query = (
             state.get(
@@ -214,6 +236,10 @@ class ReportGenerationAgent:
                 ),
             )
         )
+        
+        state[
+            "report_title"
+        ] = existing_title
 
         if not isinstance(
             refined_report,
@@ -223,6 +249,15 @@ class ReportGenerationAgent:
             refined_report = str(
                 refined_report
             )
+            
+        if not refined_report.strip():
+
+            logger.warning(
+                "Empty refinement result. "
+                "Falling back to original report."
+            )
+
+            refined_report = existing_report
 
         return (
             refined_report.strip()
@@ -285,12 +320,18 @@ class ReportGenerationAgent:
                 )
 
             report = report.strip()
-
+            
             # ── Update active workspace report ───────────
 
             state[
                 "active_report"
             ] = report
+            
+            state[
+                "current_step"
+            ] = (
+                CurrentStep.DONE.value
+            )
 
             logger.info(
                 "Compressing report context",
@@ -335,6 +376,17 @@ class ReportGenerationAgent:
                 extracted_data.get(
                     "section_order",
                     [],
+                )
+            )
+            
+            state[
+                "report_section_order"
+            ] = (
+                ReportSectionTools
+                .get_section_order(
+                    state[
+                        "report_sections"
+                    ]
                 )
             )
 
@@ -399,7 +451,10 @@ class ReportGenerationAgent:
             MemoryManager.update_memory(
                 state=state,
                 user_query=(
-                    state["query"]
+                    state.get(
+                        "refinement_query",
+                        state["query"],
+                    )
                 ),
                 assistant_response=(
                     report

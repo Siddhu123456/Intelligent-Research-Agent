@@ -122,6 +122,12 @@ class ReportRefinementAgent:
             "report_version_history"
         ].append(
             {
+                "title": (
+                    state.get(
+                        "report_title",
+                        "",
+                    )
+                ),
                 "query": (
                     state["query"]
                 ),
@@ -193,6 +199,22 @@ class ReportRefinementAgent:
                     "",
                 )
             )
+            
+            report_title = (
+                state.get(
+                    "report_title",
+                    "",
+                )
+            )
+
+            if not isinstance(
+                report_title,
+                str,
+            ):
+
+                report_title = str(
+                    report_title
+                )
 
             refinement_query = (
                 state.get(
@@ -333,7 +355,11 @@ class ReportRefinementAgent:
             target_section = (
                 refinement_intent.get(
                     "target_section",
-                    "analysis_and_insights",
+                    (
+                        report_section_order[0]
+                        if report_section_order
+                        else ""
+                    ),
                 )
             )
 
@@ -343,6 +369,23 @@ class ReportRefinementAgent:
                     target_section
                 )
             )
+            
+            # Fallback protection for
+            # invalid target sections.
+
+            if (
+                target_section
+                not in report_sections
+                and intent
+                == "modify_section"
+            ):
+
+                logger.warning(
+                    "Target section missing. "
+                    "Switching to add_section."
+                )
+
+                intent = "add_section"
             
             print(
                 "\n===== FINAL REPORT SECTIONS ====="
@@ -539,18 +582,34 @@ class ReportRefinementAgent:
             logger.info(
                 "Reconstructing report",
             )
+            
+            report_section_order = (
+                ReportSectionTools
+                .get_section_order(
+                    report_sections
+                )
+            )
 
             reconstructed_report = (
                 ReportSectionTools
                 .reconstruct_report(
+                    report_title=(
+                        report_title
+                    ),
+
                     sections=(
                         report_sections
                     ),
+
                     section_order=(
                         report_section_order
                     ),
                 )
             )
+            
+            state[
+                "report_title"
+            ] = report_title
 
             # Update workspace
 
@@ -586,7 +645,11 @@ class ReportRefinementAgent:
             MemoryManager.update_memory(
                 state=state,
                 user_query=(
-                    refinement_query
+                    state.get(
+                        "refinement_query",
+                        "",
+                    ).strip()
+                    or state["query"]
                 ),
                 assistant_response=(
                     f"Updated section: "
