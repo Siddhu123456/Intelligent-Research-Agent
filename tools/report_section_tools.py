@@ -22,10 +22,27 @@ class ReportSectionTools:
     ) -> dict:
         """
         Extract structured sections
-        and preserve original order.
+        while preserving markdown
+        hierarchy safely.
         """
 
-        if not report.strip():
+        if not isinstance(
+            report,
+            str,
+        ):
+
+            report = str(
+                report
+            )
+
+        report = report.replace(
+            "\r\n",
+            "\n",
+        )
+
+        report = report.strip()
+
+        if not report:
 
             return {
                 "sections": {},
@@ -36,8 +53,14 @@ class ReportSectionTools:
 
         section_order = []
 
+        # Only extract TRUE top-level
+        # markdown sections (##).
+        #
+        # Nested subsections (###)
+        # remain inside section content.
+
         pattern = (
-            r"##\s+(.*?)\n(.*?)(?=\n##|\Z)"
+            r"(?m)^##\s+(.*?)\n(.*?)(?=^##\s|\Z)"
         )
 
         matches = re.findall(
@@ -58,8 +81,6 @@ class ReportSectionTools:
                 )
             )
 
-            # Defensive normalization
-
             if not isinstance(
                 section_content,
                 str,
@@ -69,12 +90,60 @@ class ReportSectionTools:
                     section_content
                 )
 
-            sections[
-                cleaned_name
-            ] = (
+            cleaned_content = (
                 section_content
                 .strip()
             )
+            
+            # Remove duplicated inline titles
+            # like:
+            #
+            # ## Conclusion
+            # Conclusion
+            #
+            # caused by LLM generation.
+
+            first_line_split = (
+                cleaned_content.split(
+                    "\n",
+                    1,
+                )
+            )
+
+            if (
+                len(first_line_split)
+                > 1
+            ):
+
+                first_line = (
+                    first_line_split[0]
+                    .strip()
+                    .lower()
+                )
+
+                normalized_title = (
+                    section_name
+                    .strip()
+                    .lower()
+                )
+
+                if (
+                    first_line
+                    == normalized_title
+                ):
+
+                    cleaned_content = (
+                        first_line_split[1]
+                        .strip()
+                    )
+
+            if not cleaned_content:
+
+                continue
+
+            sections[
+                cleaned_name
+            ] = cleaned_content
 
             section_order.append(
                 cleaned_name
@@ -93,17 +162,16 @@ class ReportSectionTools:
         section_order: list[str],
     ) -> str:
         """
-        Rebuild full report using
-        persistent section order.
+        Reconstruct full report
+        while preserving markdown
+        hierarchy safely.
         """
 
         if not sections:
 
             return ""
 
-        report_parts = [
-            "# Research Report\n"
-        ]
+        report_parts = []
 
         for section_name in (
             section_order
@@ -121,7 +189,18 @@ class ReportSectionTools:
                 "",
             )
 
-            if not content.strip():
+            if not isinstance(
+                content,
+                str,
+            ):
+
+                content = str(
+                    content
+                )
+
+            content = content.strip()
+
+            if not content:
 
                 continue
 
@@ -133,13 +212,13 @@ class ReportSectionTools:
 
             report_parts.append(
                 (
-                    f"\n## "
+                    f"## "
                     f"{formatted_title}\n\n"
                     f"{content}\n"
                 )
             )
 
-        return "".join(
+        return "\n".join(
             report_parts
         ).strip()
 
@@ -148,31 +227,32 @@ class ReportSectionTools:
         sections: dict[str, str],
     ) -> list[str]:
         """
-        Determine fallback section ordering.
+        Determine intelligent
+        dynamic section ordering.
         """
 
+        if not sections:
+
+            return []
+
         preferred_order = [
-            "title",
             "abstract",
             "introduction",
-            "executive_summary",
-            "background_and_context",
             "background",
-            "key_findings",
-            "analysis_and_insights",
+            "technical_foundations",
+            "methodology",
+            "applications",
             "analysis",
-            "future_trends",
+            "ethical_considerations",
             "security_considerations",
             "limitations",
-            "deployment_strategy",
+            "future_trends",
             "recommendations",
             "conclusion",
             "references",
         ]
 
         ordered_sections = []
-
-        # Add preferred sections first
 
         for section in (
             preferred_order
@@ -183,8 +263,6 @@ class ReportSectionTools:
                 ordered_sections.append(
                     section
                 )
-
-        # Add remaining sections
 
         for section in sections:
 
@@ -225,8 +303,18 @@ class ReportSectionTools:
         section_name: str,
     ) -> str:
         """
-        Normalize section names.
+        Normalize section names
+        safely for dynamic reports.
         """
+
+        if not isinstance(
+            section_name,
+            str,
+        ):
+
+            section_name = str(
+                section_name
+            )
 
         normalized = (
             section_name
@@ -235,6 +323,12 @@ class ReportSectionTools:
             .replace("&", "and")
             .replace("-", "_")
             .replace(" ", "_")
+        )
+
+        normalized = re.sub(
+            r"[^a-z0-9_]",
+            "",
+            normalized,
         )
 
         while "__" in normalized:
@@ -246,4 +340,4 @@ class ReportSectionTools:
                 )
             )
 
-        return normalized
+        return normalized.strip("_")

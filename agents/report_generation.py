@@ -1,7 +1,10 @@
 from langsmith import (
     traceable,
 )
-from datetime import datetime
+
+from datetime import (
+    datetime,
+)
 
 from memory.memory_manager import (
     MemoryManager,
@@ -72,6 +75,7 @@ class ReportGenerationAgent:
                 "description": (
                     "Initial report generation"
                 ),
+
                 "timestamp": str(
                     datetime.now()
                 ),
@@ -83,13 +87,21 @@ class ReportGenerationAgent:
         state: ResearchState,
     ) -> str:
         """Generate fresh report."""
-        
+
+        logger.info(
+            "Generating report metadata",
+        )
+
         metadata = (
             ReportTools
             .generate_report_metadata(
-                query=state["query"],
+                query=(
+                    state["query"]
+                ),
                 findings=(
-                    state["key_findings"]
+                    state[
+                        "key_findings"
+                    ]
                 ),
             )
         )
@@ -102,9 +114,13 @@ class ReportGenerationAgent:
             metadata["abstract"]
         )
 
-        summary = (
+        logger.info(
+            "Generating dynamic report body",
+        )
+
+        report_body = (
             ReportTools
-            .generate_summary(
+            .generate_report_body(
                 query=(
                     state["query"]
                 ),
@@ -113,25 +129,37 @@ class ReportGenerationAgent:
                         "key_findings"
                     ]
                 ),
-            )
-        )
-
-        return (
-            ReportTools.format_report(
-                title=report_title,
-                query=state["query"],
-                abstract=abstract,
-                summary=summary,
-                findings=(
-                    state["key_findings"]
-                ),
                 analysis=(
                     state[
                         "analysis_summary"
                     ]
                 ),
+            )
+        )
+
+        logger.info(
+            "Formatting final report",
+        )
+
+        return (
+            ReportTools
+            .format_report(
+                title=(
+                    report_title
+                ),
+                query=(
+                    state["query"]
+                ),
+                abstract=(
+                    abstract
+                ),
+                report_body=(
+                    report_body
+                ),
                 citations=(
-                    state["citations"]
+                    state[
+                        "citations"
+                    ]
                 ),
             )
         )
@@ -175,7 +203,7 @@ class ReportGenerationAgent:
             "Applying report refinement",
         )
 
-        return (
+        refined_report = (
             ReportTools
             .refine_existing_report(
                 existing_report=(
@@ -185,6 +213,19 @@ class ReportGenerationAgent:
                     refinement_query
                 ),
             )
+        )
+
+        if not isinstance(
+            refined_report,
+            str,
+        ):
+
+            refined_report = str(
+                refined_report
+            )
+
+        return (
+            refined_report.strip()
         )
 
     @staticmethod
@@ -206,7 +247,7 @@ class ReportGenerationAgent:
                 "REPORT_GENERATION",
             )
 
-            # Refinement workflow
+            # ── Refinement workflow ───────────────────────
 
             if (
                 mode
@@ -223,7 +264,7 @@ class ReportGenerationAgent:
                     )
                 )
 
-            # Fresh report workflow
+            # ── Fresh report workflow ────────────────────
 
             else:
 
@@ -234,12 +275,27 @@ class ReportGenerationAgent:
                     )
                 )
 
-            # Update active workspace report
+            if not isinstance(
+                report,
+                str,
+            ):
+
+                report = str(
+                    report
+                )
+
+            report = report.strip()
+
+            # ── Update active workspace report ───────────
 
             state[
                 "active_report"
             ] = report
-            
+
+            logger.info(
+                "Compressing report context",
+            )
+
             compressed_context = (
                 ReportCompressionTools
                 .compress_report(
@@ -250,8 +306,12 @@ class ReportGenerationAgent:
             state[
                 "compressed_report_context"
             ] = compressed_context
-            
-            # Extract structured report sections
+
+            # ── Extract structured sections ──────────────
+
+            logger.info(
+                "Extracting report sections",
+            )
 
             extracted_data = (
                 ReportSectionTools
@@ -263,21 +323,22 @@ class ReportGenerationAgent:
             state[
                 "report_sections"
             ] = (
-                extracted_data[
-                    "sections"
-                ]
+                extracted_data.get(
+                    "sections",
+                    {},
+                )
             )
 
             state[
                 "report_section_order"
             ] = (
-                extracted_data[
-                    "section_order"
-                ]
+                extracted_data.get(
+                    "section_order",
+                    [],
+                )
             )
-            
-            # Store latest report
-            # inside vector database
+
+            # ── Store report embeddings ──────────────────
 
             session_id = (
                 state.get(
@@ -286,8 +347,8 @@ class ReportGenerationAgent:
                 )
             )
 
-            # Clear old report embeddings
-            # only during refinement
+            # Clear old embeddings
+            # during refinement
 
             if (
                 mode
@@ -297,11 +358,18 @@ class ReportGenerationAgent:
                 )
             ):
 
+                logger.info(
+                    "Clearing previous "
+                    "report embeddings",
+                )
+
                 ReportVectorTools.clear_report_embeddings(
                     session_id=session_id,
                 )
 
-            # Store active report sections
+            logger.info(
+                "Storing report embeddings",
+            )
 
             ReportVectorTools.store_report(
                 sections=(
@@ -311,8 +379,8 @@ class ReportGenerationAgent:
                 ),
                 session_id=session_id,
             )
-            
-            # Store report versions
+
+            # ── Store report versions ────────────────────
 
             (
                 ReportGenerationAgent
@@ -322,7 +390,11 @@ class ReportGenerationAgent:
                 )
             )
 
-            # Update conversational memory
+            # ── Update conversational memory ─────────────
+
+            logger.info(
+                "Updating conversational memory",
+            )
 
             MemoryManager.update_memory(
                 state=state,
@@ -334,9 +406,11 @@ class ReportGenerationAgent:
                 ),
             )
 
-            # Mark workflow completed
+            # ── Workflow completed ───────────────────────
 
-            state["current_step"] = (
+            state[
+                "current_step"
+            ] = (
                 CurrentStep.DONE.value
             )
 
@@ -357,7 +431,9 @@ class ReportGenerationAgent:
                 error,
             )
 
-            state["current_step"] = (
+            state[
+                "current_step"
+            ] = (
                 CurrentStep.ERROR.value
             )
 
