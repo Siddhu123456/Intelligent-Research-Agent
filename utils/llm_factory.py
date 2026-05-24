@@ -20,16 +20,22 @@ class LLMFactory:
             model="qwen/qwen3-32b",
             temperature=temperature,
             api_key=settings.groq_api_key,
-        )
-
+        )  
+        
     @staticmethod
-    def create_ollama_llm(
-        temperature: float = 0.2,
-    ):
+    def create_groq_tool_llm(
+        temperature: float = 0.0,
+    ) -> ChatGroq:
+        """
+        Create Groq tool-calling optimized LLM.
+        """
 
-        return ChatOllama(
-            model="gemma:2b",
+        return ChatGroq(
+            model=(
+                "llama-3.3-70b-versatile"
+            ),
             temperature=temperature,
-        )   
+            api_key=settings.groq_api_key,
+        )
     
     

@@ -119,9 +119,13 @@ class StateManager:
 
         state.clear()
 
+        # Restore persistent state
+
         state.update(
             persistent_state,
         )
+
+        # Reset transient workflow state
 
         state.update(
             deepcopy(
@@ -129,6 +133,47 @@ class StateManager:
                 .WORKFLOW_DEFAULTS
             )
         )
+
+        # Preserve report workspace
+        # for conversational workflows
+
+        if mode in [
+            "REPORT_CHAT",
+            "REPORT_REFINEMENT",
+            "DOCUMENT_GENERATION",
+        ]:
+
+            state["report_sections"] = (
+                persistent_state.get(
+                    "report_sections",
+                    {},
+                )
+            )
+
+            state["report_section_order"] = (
+                persistent_state.get(
+                    "report_section_order",
+                    [],
+                )
+            )
+
+            state["active_report"] = (
+                persistent_state.get(
+                    "active_report",
+                    "",
+                )
+            )
+
+            state[
+                "compressed_report_context"
+            ] = (
+                persistent_state.get(
+                    "compressed_report_context",
+                    "",
+                )
+            )
+
+        # Set workflow-specific state
 
         state["query"] = query
 
@@ -143,7 +188,7 @@ class StateManager:
         ] = report_chat_query
 
         # Reset generated PDF
-        # for new workflows
+        # for non-document workflows
 
         if (
             mode

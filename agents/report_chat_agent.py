@@ -6,6 +6,14 @@ from memory.memory_manager import (
     MemoryManager,
 )
 
+from memory.session_memory import (
+    SessionMemory,
+)
+
+from tools.context_tools import (
+    ContextTools,
+)
+
 from state.constants import (
     CurrentStep,
 )
@@ -31,8 +39,6 @@ logger = setup_logger(
 class ReportChatAgent:
     """Agent responsible for report Q&A."""
 
-    MAX_FALLBACK_REPORT_LENGTH = 4000
-
     @staticmethod
     @traceable(
         name="report_chat_agent",
@@ -46,18 +52,26 @@ class ReportChatAgent:
             logger.info(
                 "Starting report chat workflow",
             )
-
-            compressed_report_context = (
-                state.get(
-                    "compressed_report_context",
-                    "",
+            
+            recent_messages = (
+                SessionMemory
+                .get_recent_messages(
+                    state,
                 )
             )
 
-            active_report = (
-                state.get(
-                    "active_report",
-                    "",
+            conversation_context = (
+                ContextTools
+                .build_conversation_context(
+                    messages=(
+                        recent_messages
+                    ),
+                    summary=(
+                        state.get(
+                            "conversation_summary",
+                            "",
+                        )
+                    ),
                 )
             )
 
@@ -68,34 +82,31 @@ class ReportChatAgent:
                 )
             )
 
-            # Prefer compressed workspace memory
 
-            report_context = (
-                compressed_report_context
+            active_report = (
+                state.get(
+                    "active_report",
+                    "",
+                )
             )
 
-            # Fallback for older sessions
+            # Defensive normalization
 
-            if not report_context.strip():
+            if not isinstance(
+                active_report,
+                str,
+            ):
 
-                logger.warning(
-                    "Compressed context missing. "
-                    "Using fallback report slice.",
-                )
-
-                report_context = (
-                    active_report[
-                        :ReportChatAgent
-                        .MAX_FALLBACK_REPORT_LENGTH
-                    ]
+                active_report = str(
+                    active_report
                 )
 
             # Validate report availability
 
-            if not report_context.strip():
+            if not active_report.strip():
 
                 logger.warning(
-                    "No report context found",
+                    "No active report found",
                 )
 
                 state[
@@ -113,6 +124,28 @@ class ReportChatAgent:
                 return state
 
             # Validate user question
+
+            if not isinstance(
+                report_chat_query,
+                str,
+            ):
+
+                report_chat_query = str(
+                    report_chat_query
+                )
+                
+            rewritten_query = (
+                ContextTools
+                .rewrite_query(
+                    query=(
+                        report_chat_query
+                    ),
+
+                    conversation_context=(
+                        conversation_context
+                    ),
+                )
+            )
 
             if not report_chat_query.strip():
 
@@ -134,32 +167,35 @@ class ReportChatAgent:
                 return state
 
             logger.info(
-                "Using compressed workspace "
-                "memory for report chat",
-            )
-            
-            print(
-                "\n===== COMPRESSED REPORT CONTEXT =====\n"
-            )
-
-            print(
-                state.get(
-                    "compressed_report_context",
-                    ""
-                )
+                "Running semantic report "
+                "RAG workflow",
             )
 
             response = (
                 ReportChatTools
                 .answer_report_question(
-                    report=(
-                        report_context
+                    state = (
+                        state
                     ),
                     question=(
-                        report_chat_query
+                        rewritten_query
+                    ),
+                    conversation_context=(
+                        conversation_context
                     ),
                 )
             )
+
+            # Defensive normalization
+
+            if not isinstance(
+                response,
+                str,
+            ):
+
+                response = str(
+                    response
+                )
 
             state[
                 "report_chat_response"
