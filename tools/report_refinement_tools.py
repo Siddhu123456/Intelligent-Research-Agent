@@ -199,18 +199,65 @@ class ReportRefinementTools:
                             "You are an expert "
                             "research report editor.\n\n"
 
-                            "Refine ONLY the provided "
-                            "report section.\n\n"
+                            "Your task is to modify an "
+                            "EXISTING report section.\n\n"
 
-                            "IMPORTANT RULES:\n"
-                            "- preserve meaning\n"
-                            "- preserve accuracy\n"
-                            "- improve clarity\n"
+                            "CRITICAL BEHAVIOR RULES:\n\n"
+
+                            "1. IF the user request contains:\n"
+                            "   add, include, expand, append, "
+                            "   insert, introduce, enhance\n\n"
+
+                            "   THEN:\n"
+                            "   - KEEP the ENTIRE existing "
+                            "section content unchanged\n"
+                            "   - PRESERVE all existing text\n"
+                            "   - DO NOT summarize existing content\n"
+                            "   - DO NOT rewrite existing content\n"
+                            "   - ADD the new information as an "
+                            "additional subsection\n"
+                            "   - append new content AFTER the "
+                            "existing content\n\n"
+
+                            "2. IF the user request contains:\n"
+                            "   remove, delete, eliminate\n\n"
+
+                            "   THEN:\n"
+                            "   - REMOVE ONLY the specifically "
+                            "requested content\n"
+                            "   - KEEP all unrelated content intact\n"
+                            "   - RETURN the COMPLETE updated section\n\n"
+
+                            "3. IF the user request contains:\n"
+                            "   rewrite, replace, change completely\n\n"
+
+                            "   THEN:\n"
+                            "   - rewrite ONLY the requested portion\n"
+                            "   - preserve all unrelated content\n"
+                            "   - RETURN the COMPLETE updated section\n\n"
+
+                            "4. SECTION-SPECIFIC RULES:\n\n"
+
+                            "- For 'analysis_and_insights':\n"
+                            "  IF a subsection named "
+                            "'Contradictions' exists:\n"
+                            "  insert newly added content BEFORE "
+                            "that subsection\n\n"
+
+                            "- For 'key_findings':\n"
+                            "  ALL newly added content MUST be "
+                            "formatted as bullet points\n\n"
+
+                            "5. GENERAL RULES:\n\n"
+
+                            "- ALWAYS return the FULL updated section\n"
+                            "- NEVER return only partial edits\n"
+                            "- NEVER generate the full report\n"
+                            "- preserve professional tone\n"
+                            "- preserve technical accuracy\n"
                             "- avoid hallucinations\n"
-                            "- return ONLY updated section\n"
-                            "- do NOT generate full report\n\n"
-
-                            "Return ONLY valid JSON.\n\n"
+                            "- preserve formatting consistency\n"
+                            "- return ONLY valid JSON\n\n"
 
                             "Format:\n"
                             "{{\n"
@@ -224,10 +271,10 @@ class ReportRefinementTools:
                             "Section Name:\n"
                             "{section_name}\n\n"
 
-                            "Current Section:\n"
+                            "Existing Section Content:\n"
                             "{section_content}\n\n"
 
-                            "Refinement Request:\n"
+                            "User Refinement Request:\n"
                             "{refinement_query}"
                         ),
                     ),

@@ -27,6 +27,10 @@ from tools.report_section_tools import (
     ReportSectionTools,
 )
 
+from tools.report_vector_tools import (
+    ReportVectorTools,
+)
+
 from utils.logger import (
     setup_logger,
 )
@@ -270,6 +274,42 @@ class ReportGenerationAgent:
                 extracted_data[
                     "section_order"
                 ]
+            )
+            
+            # Store latest report
+            # inside vector database
+
+            session_id = (
+                state.get(
+                    "session_id",
+                    "",
+                )
+            )
+
+            # Clear old report embeddings
+            # only during refinement
+
+            if (
+                mode
+                == (
+                    ReportGenerationAgent
+                    .REPORT_REFINEMENT_MODE
+                )
+            ):
+
+                ReportVectorTools.clear_report_embeddings(
+                    session_id=session_id,
+                )
+
+            # Store active report sections
+
+            ReportVectorTools.store_report(
+                sections=(
+                    state[
+                        "report_sections"
+                    ]
+                ),
+                session_id=session_id,
             )
             
             # Store report versions

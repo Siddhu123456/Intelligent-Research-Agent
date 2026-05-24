@@ -53,52 +53,52 @@ class ContextTools:
         )
 
         prompt = f"""
-You are a contextual query rewriting agent.
+                        You are a contextual query rewriting agent.
 
-Your task:
-Convert conversational queries into
-standalone explicit research queries.
+                        Your task:
+                        Convert conversational queries into
+                        standalone explicit research queries.
 
-Conversation Context:
-{conversation_context}
+                        Conversation Context:
+                        {conversation_context}
 
-Current User Query:
-{query}
+                        Current User Query:
+                        {query}
 
-Rules:
-- preserve original meaning
-- resolve references like:
-  it, they, them, this, that
-- make the query standalone
-- keep the query concise
-- do not answer the query
-- return only valid JSON
+                        Rules:
+                        - preserve original meaning
+                        - resolve references like:
+                        it, they, them, this, that
+                        - make the query standalone
+                        - keep the query concise
+                        - do not answer the query
+                        - return only valid JSON
 
-Format:
-{{
-  "rewritten_query": "..."
-}}
+                        Format:
+                        {{
+                        "rewritten_query": "..."
+                        }}
 
-Examples:
+                        Examples:
 
-Input:
-"What are its applications?"
+                        Input:
+                        "What are its applications?"
 
-Output:
-{{
-  "rewritten_query":
-  "What are the applications of quantum computing?"
-}}
+                        Output:
+                        {{
+                        "rewritten_query":
+                        "What are the applications of quantum computing?"
+                        }}
 
-Input:
-"What about recent advancements?"
+                        Input:
+                        "What about recent advancements?"
 
-Output:
-{{
-  "rewritten_query":
-  "What are the recent advancements in quantum computing?"
-}}
-"""
+                        Output:
+                        {{
+                        "rewritten_query":
+                        "What are the recent advancements in quantum computing?"
+                        }}
+                        """
 
         response = llm.invoke(
             prompt,

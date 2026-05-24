@@ -2,6 +2,10 @@ from langchain_core.prompts import (
     ChatPromptTemplate,
 )
 
+from tools.report_vector_tools import (
+    ReportVectorTools,
+)
+
 from utils.json_parser import (
     JSONParser,
 )
@@ -20,16 +24,161 @@ class ReportChatTools:
 
     @staticmethod
     def answer_report_question(
-        report: str,
+        state,
         question: str,
+        conversation_context: str,
     ) -> str:
-        """Answer questions using compressed workspace memory."""
+        """
+        Answer questions using
+        conversational semantic RAG
+        with intelligent workspace
+        context routing.
+        """
 
-        if not report.strip():
+        session_id = (
+            state.get(
+                "session_id",
+                "",
+            )
+        )
+
+        report_sections = (
+            state.get(
+                "report_sections",
+                {},
+            )
+        )
+        
+        print(state["report_sections"])
+
+        compressed_report_context = (
+            state.get(
+                "compressed_report_context",
+                "",
+            )
+        )
+
+        # Defensive normalization
+
+        if not isinstance(
+            conversation_context,
+            str,
+        ):
+
+            conversation_context = str(
+                conversation_context
+            )
+
+        if not isinstance(
+            compressed_report_context,
+            str,
+        ):
+
+            compressed_report_context = str(
+                compressed_report_context
+            )
+
+        lowered_question = (
+            question.lower()
+        )
+
+        section_keywords = [
+            "section",
+            "sections",
+            "structure",
+            "outline",
+        ]
+
+        summary_keywords = [
+            "summary",
+            "summarize",
+            "overview",
+            "main findings",
+        ]
+
+        # SECTION MODE
+
+        if any(
+            keyword in lowered_question
+            for keyword in section_keywords
+        ):
+
+            ordered_sections = list(
+                report_sections.keys()
+            )
+
+            report_context = (
+                f"The report contains "
+                f"{len(ordered_sections)} "
+                f"sections.\n\n"
+
+                "Available Report Sections:\n\n"
+                + "\n".join(
+                    [
+                        (
+                            f"- {section}"
+                        )
+                        for section in (
+                            ordered_sections
+                        )
+                    ]
+                )
+            )
+
+        # SUMMARY MODE
+
+        elif any(
+            keyword in lowered_question
+            for keyword in summary_keywords
+        ):
+
+            report_context = (
+                compressed_report_context
+            )
+
+        # DEFAULT → SEMANTIC RAG
+
+        else:
+
+            retrieved_sections = (
+                ReportVectorTools
+                .semantic_report_search(
+                    query=question,
+                    session_id=session_id,
+                )
+            )
+
+            report_context = "\n\n".join(
+                [
+                    (
+                        f"Section: "
+                        f"{section['section']}\n\n"
+                        f"{section['content']}"
+                    )
+                    for section in (
+                        retrieved_sections
+                    )
+                ]
+            )
+
+        # Defensive normalization
+
+        if not isinstance(
+            report_context,
+            str,
+        ):
+
+            report_context = str(
+                report_context
+            )
+
+        # Validate retrieval results
+
+        if not report_context.strip():
 
             return (
-                "No active report is available "
-                "for question answering."
+                "No relevant report context "
+                "was found for this question."
             )
 
         llm = (
@@ -50,41 +199,63 @@ class ReportChatTools:
                             "research workspace "
                             "assistant.\n\n"
 
-                            "You are provided with "
-                            "compressed conversational "
-                            "workspace memory derived "
-                            "from a larger research report.\n\n"
+                            "You are provided with:\n"
 
-                            "Your task is to answer "
-                            "questions using ONLY the "
-                            "provided workspace memory.\n\n"
+                            "1. conversational workspace "
+                            "context\n"
+
+                            "2. report workspace context\n\n"
+
+                            "Use BOTH to answer "
+                            "user questions accurately.\n\n"
 
                             "IMPORTANT RULES:\n"
+
                             "- answer ONLY from the "
-                            "workspace memory\n"
+                            "provided report context\n"
+
                             "- do not hallucinate\n"
+
                             "- do not invent facts\n"
+
                             "- if information is missing, "
                             "clearly say so\n"
+
                             "- preserve technical accuracy\n"
+
                             "- provide concise and "
                             "professional answers\n"
+
                             "- infer relationships only "
                             "when strongly supported\n"
-                            "- optimize for conversational "
-                            "workspace continuity\n\n"
 
-                            "The workspace memory may be:\n"
-                            "- compressed\n"
-                            "- summarized\n"
-                            "- condensed\n\n"
+                            "- mention relevant section "
+                            "names when appropriate\n"
 
-                            "So prioritize:\n"
-                            "- key findings\n"
-                            "- important concepts\n"
-                            "- technical insights\n"
-                            "- conclusions\n"
-                            "- important terminology\n\n"
+                            "- optimize for grounded "
+                            "conversational Q&A\n\n"
+
+                            "- use conversation context "
+                            "to resolve references like:\n"
+                            "  it, they, this, that\n"
+
+                            "- maintain conversational "
+                            "continuity\n\n"
+
+                            "- if the question asks about "
+                            "report structure or sections, "
+                            "use available section context\n"
+
+                            "- if the question asks for "
+                            "summary or overview, use "
+                            "compressed report summary\n"
+                            
+                            "- if section information is "
+                            "explicitly available in the "
+                            "context, directly use it\n"
+
+                            "- otherwise use semantically "
+                            "retrieved report context\n\n"
 
                             "Return ONLY valid JSON.\n\n"
 
@@ -97,9 +268,11 @@ class ReportChatTools:
                     (
                         "human",
                         (
-                            "Compressed Workspace "
-                            "Memory:\n"
-                            "{report}\n\n"
+                            "Conversation Context:\n"
+                            "{conversation_context}\n\n"
+
+                            "Report Workspace Context:\n"
+                            "{report_context}\n\n"
 
                             "Question:\n"
                             "{question}"
@@ -116,11 +289,20 @@ class ReportChatTools:
 
         response = chain.invoke(
             {
-                "report": report[
+                "conversation_context":
+                conversation_context[
                     :ReportChatTools
                     .MAX_CONTEXT_LENGTH
                 ],
-                "question": question,
+
+                "report_context":
+                report_context[
+                    :ReportChatTools
+                    .MAX_CONTEXT_LENGTH
+                ],
+
+                "question":
+                question,
             }
         )
 
@@ -133,8 +315,8 @@ class ReportChatTools:
                     "answer": (
                         "Unable to generate "
                         "a grounded answer "
-                        "from the workspace "
-                        "memory."
+                        "from the report "
+                        "workspace context."
                     ),
                 },
             )
@@ -147,7 +329,7 @@ class ReportChatTools:
             )
         )
 
-        # Defensive validation
+        # Defensive normalization
 
         if not isinstance(
             answer,

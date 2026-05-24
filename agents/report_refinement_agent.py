@@ -28,6 +28,10 @@ from tools.report_section_tools import (
     ReportSectionTools,
 )
 
+from tools.report_vector_tools import (
+    ReportVectorTools,
+)
+
 from utils.logger import (
     setup_logger,
 )
@@ -143,6 +147,31 @@ class ReportRefinementAgent:
             }
         )
         
+        # Refresh report embeddings
+        # after refinement
+
+        session_id = (
+            state.get(
+                "session_id",
+                "",
+            )
+        )
+
+        # Remove old report vectors
+
+        ReportVectorTools.clear_report_embeddings(
+            session_id=session_id,
+        )
+
+        # Store updated report sections
+
+        ReportVectorTools.store_report(
+            sections=(
+                report_sections
+            ),
+            session_id=session_id,
+        )
+        
     @staticmethod
     @traceable(
         name="report_refinement_agent",
@@ -187,6 +216,14 @@ class ReportRefinementAgent:
             )
 
             # Validate report
+            if not isinstance(
+                active_report,
+                str,
+            ):
+
+                active_report = str(
+                    active_report
+                )
 
             if not active_report.strip():
 
