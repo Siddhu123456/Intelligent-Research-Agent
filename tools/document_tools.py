@@ -31,8 +31,7 @@ MB = 20 * mm
 # ── Page decorator ─────────────────────────────────────────────────────────────
 def make_page_decorator(metadata):
     """Return a page callback that uses the provided metadata."""
-    topic = metadata.get("topic", "Research Report").upper()
-    header_left  = f"{topic} — RESEARCH REPORT"
+    header_left  = f"RESEARCH REPORT"
     header_right = metadata.get("date", "")
 
     def make_page(canvas, doc):
@@ -170,6 +169,46 @@ def tag_row(items, st):
         fontName="Helvetica", fontSize=8, textColor=INK_LIGHT,
         leading=13, spaceAfter=10,
     ))
+
+
+def render_paragraph_text(
+    story,
+    text,
+    st,
+    paragraph_style,
+):
+    """Render multiline text as paragraph flowables, preserving markdown subheadings."""
+    lines = text.split("\n")
+    paragraph_buffer = []
+
+    def flush_paragraph():
+        if paragraph_buffer:
+            paragraph_text = " ".join(paragraph_buffer).strip()
+            if paragraph_text:
+                story.append(
+                    Paragraph(
+                        paragraph_text,
+                        paragraph_style,
+                    )
+                )
+            paragraph_buffer.clear()
+
+    for line in lines:
+        stripped = line.strip()
+
+        if not stripped:
+            flush_paragraph()
+            continue
+
+        heading_match = re.match(r"^(#{1,4})\s+(.+)$", stripped)
+        if heading_match:
+            flush_paragraph()
+            heading_text = heading_match.group(2).strip()
+            continue
+
+        paragraph_buffer.append(stripped)
+
+    flush_paragraph()
 
 
 # ── Cover page (drawn in onFirstPage callback) ────────────────────────────────
@@ -337,24 +376,41 @@ def build_report(st, sections=None, references=None):
         content = sec["content"]
 
         if i == 0:
-            # First section → abstract callout box
+            # First section → abstract callout box for short summaries.
             text = content if isinstance(content, str) else " ".join(
                 b.get("text", "") for b in content
             )
-            abstract_table = Table(
-                [[Paragraph(text, st["abstract"])]],
-                colWidths=[PAGE_W - ML - MR]
+
+            use_abstract_table = (
+                isinstance(content, str)
+                and len(text) <= 700
+                and text.count("\n") <= 2
+                and not re.search(r"^#{1,4}\s+", text, flags=re.MULTILINE)
             )
-            abstract_table.setStyle(TableStyle([
-                ("BACKGROUND",    (0, 0), (-1, -1), BG_TAG),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 10),
-                ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
-                ("TOPPADDING",    (0, 0), (-1, -1), 10),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-                ("LINERIGHT",     (0, 0), (0,  -1),  3, ACCENT_RED),
-            ]))
-            story.append(abstract_table)
-            story.append(Spacer(1, 4 * mm))
+
+            if use_abstract_table:
+                abstract_table = Table(
+                    [[Paragraph(text, st["abstract"])]],
+                    colWidths=[PAGE_W - ML - MR]
+                )
+
+                abstract_table.setStyle(TableStyle([
+                    ("BACKGROUND",    (0, 0), (-1, -1), BG_TAG),
+                    ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+                    ("TOPPADDING",    (0, 0), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                    ("LINERIGHT",     (0, 0), (0,  -1),  3, ACCENT_RED),
+                ]))
+
+                story.append(abstract_table)
+            else:
+                render_paragraph_text(
+                    story,
+                    text,
+                    st,
+                    st["abstract"],
+                )
 
         elif isinstance(
             content,
