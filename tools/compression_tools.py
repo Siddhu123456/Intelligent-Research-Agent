@@ -14,6 +14,10 @@ from utils.llm_factory import (
     LLMFactory,
 )
 
+from tools.prompts.compression_tools_prompts import (
+    COMPRESSION_SYSTEM_PROMPT,
+)
+
 
 class CompressionTools:
     """Tools for contextual compression."""
@@ -46,30 +50,7 @@ class CompressionTools:
                     [
                         (
                             "system",
-                            (
-                                "You are a contextual "
-                                "compression agent.\n\n"
-                                "Extract ONLY information "
-                                "relevant to the user query.\n\n"
-                                "Rules:\n"
-                                "- remove irrelevant details\n"
-                                "- preserve factual accuracy\n"
-                                "- preserve technical details\n"
-                                "- avoid hallucinations\n"
-                                "- avoid summaries unrelated "
-                                "to the query\n"
-                                "- keep the response concise\n"
-                                "- return factual compressed "
-                                "content only\n"
-                                "- do not include reasoning\n"
-                                "- do not include "
-                                "<think> tags\n"
-                                "- return only valid JSON\n\n"
-                                "Format:\n"
-                                "{{\n"
-                                '  "content": "..."\n'
-                                "}}"
-                            ),
+                            COMPRESSION_SYSTEM_PROMPT,
                         ),
                         (
                             "human",

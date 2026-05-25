@@ -31,8 +31,7 @@ MB = 20 * mm
 # ── Page decorator ─────────────────────────────────────────────────────────────
 def make_page_decorator(metadata):
     """Return a page callback that uses the provided metadata."""
-    topic = metadata.get("topic", "Research Report").upper()
-    header_left  = f"{topic} — RESEARCH REPORT"
+    header_left = "RESEARCH REPORT"
     header_right = metadata.get("date", "")
 
     def make_page(canvas, doc):

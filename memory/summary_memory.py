@@ -18,6 +18,10 @@ from utils.llm_factory import (
     LLMFactory,
 )
 
+from memory.prompts.summary_memory_prompts import (
+    SUMMARY_MEMORY_SYSTEM_PROMPT,
+)
+
 
 class SummaryMemory:
     """Maintains compressed conversation memory."""
@@ -76,29 +80,8 @@ class SummaryMemory:
         prompt = (
             ChatPromptTemplate.from_messages(
                 [
-                    (
-                        "system",
-                        (
-                            "You are a conversation "
-                            "memory summarization "
-                            "agent.\n\n"
-                            "Maintain a concise "
-                            "long-term memory summary.\n\n"
-                            "Preserve:\n"
-                            "- research topics\n"
-                            "- user goals\n"
-                            "- technical preferences\n"
-                            "- previous conclusions\n"
-                            "- ongoing context\n\n"
-                            "Avoid repetition.\n"
-                            "Keep summary compact "
-                            "and information-dense.\n\n"
-                            "Return ONLY valid JSON.\n\n"
-                            "Format:\n"
-                            "{{\n"
-                            '  "summary": "..." \n'
-                            "}}"
-                        ),
+                    ("system",
+                        SUMMARY_MEMORY_SYSTEM_PROMPT,
                     ),
                     (
                         "human",
