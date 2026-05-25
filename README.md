@@ -363,6 +363,7 @@ Intelligent-Research-Agent/
 ├── memory/
 │   ├── __init__.py
 │   ├── memory_manager.py
+│   ├── prompts/
 │   ├── session_memory.py
 │   └── summary_memory.py
 ├── state/
@@ -388,10 +389,12 @@ Intelligent-Research-Agent/
 │   ├── report_refinement_tools.py
 │   ├── report_section_tools.py
 │   ├── report_tools.py
+│   ├── report_vector_tools.py
 │   ├── reranking_tools.py
 │   ├── search_tools.py
 │   ├── supervisor_tools.py
-│   └── vector_tools.py
+│   ├── vector_tools.py
+│   └── prompts/
 ├── utils/
 │   ├── __init__.py
 │   ├── embedding_factory.py
