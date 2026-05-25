@@ -19,11 +19,13 @@ A full-stack AI research workspace built around a LangGraph-driven multi-agent p
 - `agents/` — workflow agent classes that implement each stage of the research pipeline
 - `graph/` — LangGraph workflow graph builder, routing, executor, and node wiring
 - `config/` — environment loading and runtime settings
-- `memory/` — session memory, long-term summary memory, and memory management helpers
+- `memory/` — session memory, long-term summary memory, prompt templates, and memory management helpers
+- `memory/prompts/` — reusable prompt templates for memory and summary workflows
 - `state/` — typed state definitions, schemas, models, and validation utilities
 - `streamlit_app/` — Streamlit UI flow and application interface
 - `tests/` — unit and integration tests for repository behavior
-- `tools/` — reusable workflow tool helpers and domain-specific utilities
+- `tools/` — reusable workflow tool helpers, prompt utilities, and domain-specific utilities
+- `tools/prompts/` — reusable prompt assets and prompt construction helpers
 - `utils/` — model factories, state helpers, persistence utilities, and logging
 - `docs/` — documentation assets, including the workflow diagram
 - `main.py` — application entrypoint for local CLI-style execution
