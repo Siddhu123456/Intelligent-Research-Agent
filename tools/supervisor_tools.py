@@ -8,11 +8,17 @@ class SupervisorTools:
     def should_retry_retrieval(
         state: ResearchState,
     ) -> bool:
+        # If this run was initiated by a user-triggered regeneration,
+        # avoid automatic retrieval retries to prevent retry loops.
+        run_meta = state.get("run_metadata", {}) or {}
+        if run_meta.get("regen_initiated"):
+            return False
+
         return (
-            state["low_confidence"]
+            state.get("low_confidence", False)
             and (
-                state["retry_count"]
-                < state["max_retries"]
+                state.get("retry_count", 0)
+                < state.get("max_retries", 0)
             )
         )
 
