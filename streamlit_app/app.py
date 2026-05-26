@@ -15,6 +15,47 @@ from utils.state_factory import StateFactory
 from utils.state_manager import StateManager
 from utils.vector_store import VectorStoreManager
 
+
+def run_streaming_chat_workflow(
+    state,
+):
+    """
+    Run streaming report chat workflow.
+    """
+
+    async def _stream():
+
+        async for token in (
+            st.session_state
+            .graph_executor
+            .stream_report_chat(
+                state
+            )
+        ):
+
+            yield token
+
+    loop = asyncio.new_event_loop()
+
+    asyncio.set_event_loop(
+        loop
+    )
+
+    async_generator = _stream()
+
+    async def generator_wrapper():
+
+        async for token in (
+            async_generator
+        ):
+
+            yield token
+
+    return (
+        loop,
+        generator_wrapper(),
+    )
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="AI Research Workspace",
@@ -81,6 +122,81 @@ st.markdown(
         margin-bottom: 0.45rem !important;
         line-height: 1.65 !important;
     }
+    .chat-panel {
+        padding: 1rem 1rem 0.75rem;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(15, 23, 42, 0.92);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.12);
+        margin-bottom: 1rem;
+    }
+    .chat-panel h2 {
+        font-size: 1.4rem;
+        margin: 0;
+        color: #f8fafc;
+    }
+    .chat-panel p {
+        margin: 0.25rem 0 0;
+        color: #cbd5e1;
+        font-size: 0.96rem;
+        line-height: 1.6;
+    }
+    section[data-testid="stChatMessageContainer"] {
+        max-height: 62vh;
+        min-height: 38vh;
+        overflow-y: auto;
+        padding: 0.8rem 0.8rem 0.5rem;
+        border-radius: 1.2rem;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(7, 11, 24, 0.95);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+    }
+    section[data-testid="stChatMessageContainer"]::-webkit-scrollbar {
+        width: 8px;
+    }
+    section[data-testid="stChatMessageContainer"]::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.14);
+        border-radius: 999px;
+    }
+    section[data-testid="stChatMessageContainer"] div[class*="stChatMessage"] {
+        padding: 1rem 1.1rem;
+        border-radius: 1.4rem;
+        margin: 0.5rem 0;
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.14);
+        background: rgba(30, 41, 59, 0.95);
+        color: #e2e8f0;
+        line-height: 1.78;
+    }
+    section[data-testid="stChatMessageContainer"] div[class*="stChatMessage"][data-author="user"] {
+        background: rgba(59, 130, 246, 0.18);
+        border-color: rgba(59, 130, 246, 0.28);
+        color: #f8fafc;
+        margin-left: auto;
+    }
+    section[data-testid="stChatMessageContainer"] div[class*="stChatMessage"][data-author="assistant"] {
+        background: rgba(15, 23, 42, 0.95);
+        border-color: rgba(148, 163, 184, 0.16);
+    }
+    section[data-testid="stChatMessageContainer"] div[class*="stChatMessage"] p,
+    section[data-testid="stChatMessageContainer"] div[class*="stChatMessage"] span {
+        color: inherit;
+    }
+    section[data-testid="stChatMessageContainer"] div[class*="stChatMessage"] code {
+        color: #e2e8f0;
+        background: rgba(148, 163, 184, 0.18);
+        padding: 0.15rem 0.35rem;
+        border-radius: 0.45rem;
+    }
+    div[data-testid="stChatInputTextArea"], textarea[data-testid="stChatInputTextArea"] {
+        position: sticky !important;
+        bottom: 0;
+        z-index: 12;
+        margin-top: 1rem;
+        background: rgba(15, 23, 42, 0.96) !important;
+        border-radius: 1rem !important;
+        padding: 0.75rem 0.9rem !important;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -106,6 +222,7 @@ for key, default in [
     ("graph_executor",   None),
     ("refinement_input", ""),
     ("chat_input",       ""),
+    ("chat_history",     []),
     ("last_action",      ""),
     ("research_query",   ""),
     ("version_pdfs",     {}),
@@ -261,8 +378,8 @@ with st.sidebar:
         ] = ""
 
         st.session_state[
-            "chat_input"
-        ] = ""
+            "chat_history"
+        ] = []
 
         st.session_state[
             "last_action"
@@ -425,7 +542,7 @@ if (
     )
 ):
     st.divider()
-    tab_report, tab_chat, tab_history = st.tabs(["📄 Report", "💬 Chat", "🕓 Versions"])
+    tab_report, tab_chat, tab_history = st.tabs(["📄 Report", "💬 Chat", "🕓 Versions"], key="report_workspace_tabs")
 
     # ── Tab 1: Report ─────────────────────────────────────────────────────────
     with tab_report:
@@ -521,58 +638,134 @@ if (
 
     # ── Tab 2: Chat ───────────────────────────────────────────────────────────
     with tab_chat:
-        st.markdown('<p class="section-label">Ask Questions About This Report</p>', unsafe_allow_html=True)
-        col_q, col_ask = st.columns([5, 1])
-        with col_q:
-            chat_query = st.text_input(
-                "Question",
-                value=st.session_state.chat_input,
-                placeholder="e.g. What were the main technical findings?",
-                label_visibility="collapsed",
-            )
-        with col_ask:
-            ask_clicked = st.button("Ask →", use_container_width=True)
+        st.markdown(
+            """
+            <div class="chat-panel">
+                <h2>Research Assistant Chat</h2>
+                <p>Ask questions about your report and receive concise, professional answers with traceable context.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.session_state.chat_history:
+            for chat in (
+                st.session_state
+                .chat_history
+            ):
 
-        if ask_clicked:
+                with st.chat_message(
+                    "user"
+                ):
+
+                    st.markdown(
+                        chat["question"]
+                    )
+
+                with st.chat_message(
+                    "assistant"
+                ):
+
+                    st.markdown(
+                        chat["answer"]
+                    )
+                    
+        chat_query = st.chat_input(
+            "Ask questions about the report..."
+        )
+
+        if chat_query:
             if not chat_query.strip():
                 st.warning("Please enter a question.")
             else:
                 try:
-                    wf_state = StateManager.prepare_next_workflow(
-                        previous_state=st.session_state.state,
-                        query=chat_query,
-                        mode="REPORT_CHAT",
-                        report_chat_query=chat_query,
+                    
+                    with st.chat_message(
+                        "user"
+                    ):
+
+                        st.markdown(
+                            chat_query
+                        )
+                    
+                    wf_state = (
+                        StateManager
+                        .prepare_next_workflow(
+                            previous_state=(
+                                st.session_state.state
+                            ),
+
+                            query=(
+                                chat_query
+                            ),
+
+                            mode="REPORT_CHAT",
+
+                            report_chat_query=(
+                                chat_query
+                            ),
+                        )
                     )
-                    result = run_workflow(wf_state, "Thinking…")
-                    st.session_state.state      = result
-                    st.session_state.chat_input = ""
+                    
+                    loop, stream = (
+                        run_streaming_chat_workflow(
+                            wf_state
+                        )
+                    )
+
+                    response_tokens = []
+
+                    with st.chat_message(
+                        "assistant"
+                    ):
+
+                        response_container = (
+                            st.empty()
+                        )
+
+                        async def consume_stream():
+
+                            async for token in stream:
+
+                                response_tokens.append(
+                                    token
+                                )
+
+                                response_container.markdown(
+                                    "".join(
+                                        response_tokens
+                                    )
+                                )
+
+                        try:
+                            loop.run_until_complete(
+                                consume_stream()
+                            )
+
+                        finally:
+                            loop.close()
+                    
+                    full_response = "".join(
+                        response_tokens
+                    )
+                    
+                    st.session_state.chat_history.append(
+                        {
+                            "question": chat_query,
+                            "answer": full_response,
+                        }
+                    )
+
+                    wf_state[
+                        "report_chat_response"
+                    ] = full_response
+
+                    st.session_state.state = (
+                        wf_state
+                    )
+
                     st.rerun()
                 except Exception as e:
                     st.error(f"Chat Error: {e}")
-
-        report_chat_response = (
-            st.session_state.state.get(
-                "report_chat_response",
-                "",
-            )
-            if st.session_state.state
-            else ""
-        )
-
-        if not isinstance(
-            report_chat_response,
-            str,
-        ):
-
-            report_chat_response = str(
-                report_chat_response
-            )
-            
-        if report_chat_response:
-            st.divider()
-            st.markdown('<p class="section-label">Answer</p>', unsafe_allow_html=True)
-            st.info(report_chat_response)
 
     # ── Tab 3: Version History ────────────────────────────────────────────────
     with tab_history:

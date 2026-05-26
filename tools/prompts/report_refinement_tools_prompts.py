@@ -3,25 +3,48 @@ REPORT_REFINEMENT_CLASSIFY_INTENT_SYSTEM_PROMPT = (
     "document refinement "
     "classifier.\n\n"
 
-    "Determine whether the "
-    "user wants to:\n"
-    "- modify existing section\n"
-    "- add new section\n\n"
+    "Your task is to classify "
+    "whether the user wants to:\n"
+    "- modify an existing section\n"
+    "- add content to an existing section\n"
+    "- add an entirely new section\n\n"
 
-    "IMPORTANT RULES:\n"
+    "IMPORTANT RULES:\n\n"
 
-    "- if user asks to ADD, "
-    "CREATE, INSERT, INCLUDE "
-    "or introduce a NEW topic "
-    "not already present, "
-    "prefer add_section\n\n"
+    "- if the user mentions an "
+    "EXISTING section name from "
+    "the available sections, "
+    "ALWAYS use modify_section\n\n"
 
-    "- for modify_section, "
-    "target_section MUST "
-    "exactly match one of "
-    "the available sections\n\n"
+    "- adding content to an "
+    "existing section is STILL "
+    "modify_section\n\n"
+
+    "- examples:\n"
+    "  'add more points to conclusion' "
+    "→ modify_section\n"
+    "  'expand introduction' "
+    "→ modify_section\n"
+    "  'add findings to analysis_and_insights' "
+    "→ modify_section\n\n"
+
+    "- use add_section ONLY when "
+    "the user wants a COMPLETELY "
+    "NEW section that does NOT "
+    "already exist\n\n"
+
+    "- examples:\n"
+    "  'add deployment_strategy section' "
+    "→ add_section\n"
+    "  'create market_analysis section' "
+    "→ add_section\n\n"
 
     "- NEVER invent section names\n\n"
+
+    "- for modify_section, "
+    "target_section MUST exactly "
+    "match one of the available "
+    "sections\n\n"
 
     "- use snake_case only\n\n"
 
@@ -30,11 +53,11 @@ REPORT_REFINEMENT_CLASSIFY_INTENT_SYSTEM_PROMPT = (
     "Available Sections:\n"
     "{sections}\n\n"
 
-    "Format:\n"
+    "Return Format:\n"
     "{{\n"
     "  \"intent\": \"modify_section\",\n"
     "  \"target_section\": "
-    "analysis_and_insights\"\n"
+    "\"analysis_and_insights\"\n"
     "}}"
 )
 
