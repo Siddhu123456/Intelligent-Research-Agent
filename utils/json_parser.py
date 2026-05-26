@@ -11,6 +11,27 @@ class JSONParser:
     ) -> str:
         """Clean raw LLM response."""
 
+        # Coerce non-string content (models, dicts, lists) to string/json
+        if not isinstance(content, str):
+            try:
+                # Pydantic model v2
+                if hasattr(content, "model_dump"):
+                    content = content.model_dump()
+
+                # Pydantic model v1 or other objects
+                if hasattr(content, "dict") and not isinstance(content, dict):
+                    content = content.dict()
+
+                if isinstance(content, (dict, list)):
+                    content = json.dumps(content)
+                else:
+                    content = str(content)
+            except Exception:
+                try:
+                    content = str(content)
+                except Exception:
+                    content = ""
+
         cleaned = re.sub(
             r"```json|```",
             "",

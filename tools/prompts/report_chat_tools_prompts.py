@@ -53,5 +53,5 @@ REPORT_CHAT_SYSTEM_PROMPT = (
 
     "- if the question asks for "
     "summary or overview, use "
-    "compressed report summary\n"
+    "the report workspace context retrieved via semantic search\n"
 )

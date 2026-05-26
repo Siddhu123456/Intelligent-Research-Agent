@@ -86,7 +86,6 @@ class StateFactory:
 
             "report_version_history": [],
             
-            "compressed_report_context": "",
 
             # Document generation state
 

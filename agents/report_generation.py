@@ -1,6 +1,4 @@
-from langsmith import (
-    traceable,
-)
+from utils.langsmith_wrapper import traceable
 
 from datetime import (
     datetime,
@@ -22,9 +20,6 @@ from tools.report_tools import (
     ReportTools,
 )
 
-from tools.report_compression_tools import (
-    ReportCompressionTools,
-)
 
 from tools.report_section_tools import (
     ReportSectionTools,
@@ -191,89 +186,8 @@ class ReportGenerationAgent:
             )
         )
 
-    @staticmethod
-    def _refine_existing_report(
-        state: ResearchState,
-    ) -> str:
-        """Refine active workspace report."""
-
-        existing_report = (
-            state.get(
-                "active_report",
-                "",
-            )
-        )
-        
-        existing_title = (
-            state.get(
-                "report_title",
-                state["query"],
-            )
-        )
-
-        refinement_query = (
-            state.get(
-                "refinement_query",
-                "",
-            )
-        )
-
-        if not existing_report:
-
-            logger.warning(
-                "No active report found. "
-                "Falling back to fresh "
-                "report generation.",
-            )
-
-            return (
-                ReportGenerationAgent
-                ._generate_new_report(
-                    state,
-                )
-            )
-
-        logger.info(
-            "Applying report refinement",
-        )
-
-        refined_report = (
-            ReportTools
-            .refine_existing_report(
-                existing_report=(
-                    existing_report
-                ),
-                refinement_query=(
-                    refinement_query
-                ),
-            )
-        )
-        
-        state[
-            "report_title"
-        ] = existing_title
-
-        if not isinstance(
-            refined_report,
-            str,
-        ):
-
-            refined_report = str(
-                refined_report
-            )
-            
-        if not refined_report.strip():
-
-            logger.warning(
-                "Empty refinement result. "
-                "Falling back to original report."
-            )
-
-            refined_report = existing_report
-
-        return (
-            refined_report.strip()
-        )
+    # `_refine_existing_report` removed — report refinement is handled
+    # by `ReportRefinementAgent` and `tools/report_refinement_tools.py`.
 
     @staticmethod
     @traceable(
@@ -294,33 +208,14 @@ class ReportGenerationAgent:
                 "REPORT_GENERATION",
             )
 
-            # Refinement workflow 
+            # Generate fresh report (refinement handled elsewhere)
 
-            if (
-                mode
-                == (
-                    ReportGenerationAgent
-                    .REPORT_REFINEMENT_MODE
+            report = (
+                ReportGenerationAgent
+                ._generate_new_report(
+                    state,
                 )
-            ):
-
-                report = (
-                    ReportGenerationAgent
-                    ._refine_existing_report(
-                        state,
-                    )
-                )
-
-            # Fresh report workflow
-
-            else:
-
-                report = (
-                    ReportGenerationAgent
-                    ._generate_new_report(
-                        state,
-                    )
-                )
+            )
 
             if not isinstance(
                 report,
@@ -380,25 +275,8 @@ class ReportGenerationAgent:
                 )
             )
 
-            # Clear old embeddings
-            # during refinement
-
-            if (
-                mode
-                == (
-                    ReportGenerationAgent
-                    .REPORT_REFINEMENT_MODE
-                )
-            ):
-
-                logger.info(
-                    "Clearing previous "
-                    "report embeddings",
-                )
-
-                ReportVectorTools.clear_report_embeddings(
-                    session_id=session_id,
-                )
+            # Note: refinement-specific embedding clearing removed; the
+            # dedicated refinement agent manages report embedding lifecycle.
 
             logger.info(
                 "Storing report embeddings",
@@ -420,16 +298,8 @@ class ReportGenerationAgent:
                 "Compressing report context",
             )
 
-            compressed_context = (
-                ReportCompressionTools
-                .compress_report(
-                    report=report,
-                )
-            )
-
-            state[
-                "compressed_report_context"
-            ] = compressed_context
+            # Compressed report summary removed; downstream consumers
+            # should use semantic RAG over report sections instead.
 
             #  Store report versions 
 

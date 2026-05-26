@@ -1,6 +1,4 @@
-from langsmith import (
-    traceable,
-)
+from utils.langsmith_wrapper import traceable
 
 from memory.memory_manager import (
     MemoryManager,
@@ -288,38 +286,6 @@ class ReportChatAgent:
                     {},
                 )
             )
-
-            compressed_report_context = (
-                state.get(
-                    "compressed_report_context",
-                    "",
-                )
-            )
-
-            if (
-                not report_sections
-                and
-                not compressed_report_context
-            ):
-
-                logger.warning(
-                    "No report workspace "
-                    "context found",
-                )
-
-                state[
-                    "report_chat_response"
-                ] = (
-                    "No report workspace is "
-                    "available for question "
-                    "answering."
-                )
-
-                state["current_step"] = (
-                    CurrentStep.DONE.value
-                )
-
-                return
 
             # Validate user question
 

@@ -52,12 +52,11 @@ REPORT_REFINEMENT_CLASSIFY_INTENT_SYSTEM_PROMPT = (
 
     "Available Sections:\n"
     "{sections}\n\n"
-
     "Return Format:\n"
     "{{\n"
     "  \"intent\": \"modify_section\",\n"
-    "  \"target_section\": "
-    "\"analysis_and_insights\"\n"
+    "  \"target_section\": \"analysis_and_insights\",\n"
+    "  \"search_query\": \"\"  # optional: include a concise query for external search if needed\n"
     "}}"
 )
 

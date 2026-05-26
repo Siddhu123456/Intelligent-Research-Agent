@@ -16,6 +16,17 @@ from tools.prompts.report_refinement_tools_prompts import (
     REPORT_REFINEMENT_PLACEMENT_SYSTEM_PROMPT,
     REPORT_REFINEMENT_SECTION_EDIT_SYSTEM_PROMPT,
 )
+from tools.search_tools import SearchTools
+from tools.report_section_tools import (
+    ReportSectionTools,
+)
+
+from state.models import SubQuery
+from state.constants import Domain
+
+from utils.vector_store import VectorStoreManager
+from langchain_core.documents import Document as LangchainDocument
+from uuid import uuid4
 
 
 class ReportRefinementTools:
@@ -31,6 +42,7 @@ class ReportRefinementTools:
     def classify_refinement_intent(
         refinement_query: str,
         existing_sections: list[str],
+        report_title: str = "",
     ) -> dict:
         """
         Detect refinement intent safely.
@@ -54,6 +66,9 @@ class ReportRefinementTools:
                     (
                         "human",
                         (
+                            "Report Title:\n"
+                            "{title}\n\n"
+
                             "Refinement Request:\n"
                             "{query}"
                         ),
@@ -79,24 +94,19 @@ class ReportRefinementTools:
                 ", ".join(
                     existing_sections
                 ),
+                "title": report_title,
             }
         )
 
         parsed_response = (
             JSONParser.safe_extract(
-                content=(
-                    response.content
-                ),
+                content=(response.content),
                 fallback={
-                    "intent":
-                    "modify_section",
-
-                    "target_section":
-                    (
-                        existing_sections[0]
-                        if existing_sections
-                        else ""
+                    "intent": "modify_section",
+                    "target_section": (
+                        existing_sections[0] if existing_sections else ""
                     ),
+                    "search_query": "",
                 },
             )
         )
@@ -114,6 +124,10 @@ class ReportRefinementTools:
                 "modify_section",
             )
         )
+
+        # Ensure search_query exists
+        if "search_query" not in parsed_response:
+            parsed_response["search_query"] = ""
 
         # Safety correction
 
@@ -138,6 +152,9 @@ class ReportRefinementTools:
         section_name: str,
         section_content: str,
         refinement_query: str,
+        report_title: str = "",
+        session_id: str = "",
+        retrieved_documents: list[dict] | None = None,
     ) -> str:
         """
         Refine ONLY one section.
@@ -156,6 +173,78 @@ class ReportRefinementTools:
                 .MAX_REFINEMENT_QUERY
             ]
         )
+
+        evidence = ""
+
+        # If retrieved_documents provided by the retrieval agent, use them
+        if retrieved_documents:
+            try:
+                entries = []
+                for d in retrieved_documents[:5]:
+                    title = d.get("title") or d.get("section") or ""
+                    src = d.get("source", "external")
+                    content = d.get("content") or (d.get("document").page_content if d.get("document") else "")
+                    snippet = (content or "")[:1200]
+                    entries.append(f"{title} — {src}\n{snippet}\n\n")
+                evidence = "".join(entries)
+            except Exception:
+                evidence = ""
+
+        # Otherwise, fall back to session_id-driven inline search (older behavior)
+        elif session_id:
+            try:
+                query = f"{report_title} {section_name} {refinement_query} {section_content[:300]}".strip()
+                sub_query = SubQuery(query=query, domain=Domain.WEB, priority=3)
+
+                candidates: list = []
+                try:
+                    candidates += SearchTools.search_web(sub_query, max_results=3)
+                except Exception:
+                    pass
+
+                try:
+                    candidates += SearchTools.search_wikipedia(sub_query)
+                except Exception:
+                    pass
+
+                docs = SearchTools.deduplicate_documents(candidates)
+
+                try:
+                    vector_store = VectorStoreManager.get_vector_store(session_id=session_id)
+                    lc_docs = []
+                    ids = []
+                    for d in docs:
+                        content = d.content if isinstance(d.content, str) else str(d.content)
+                        if not content.strip():
+                            continue
+                        lc_docs.append(
+                            LangchainDocument(
+                                page_content=content,
+                                metadata={
+                                    "chunk_type": "external",
+                                    "source": d.source.value if hasattr(d.source, "value") else str(d.source),
+                                    "title": d.title,
+                                    "url": d.url,
+                                    "session_id": session_id,
+                                },
+                            )
+                        )
+                        ids.append(str(uuid4()))
+
+                    if lc_docs:
+                        vector_store.add_documents(documents=lc_docs, ids=ids)
+                except Exception:
+                    pass
+
+                # Build evidence
+                evidence = ""
+                for d in docs[:3]:
+                    title = d.title or ""
+                    src = d.source.value if hasattr(d.source, "value") else str(d.source)
+                    snippet = (d.content or "")[:1200]
+                    evidence += f"{title} — {src}\n{snippet}\n\n"
+            except Exception:
+                evidence = ""
 
         llm = (
             LLMFactory
@@ -193,16 +282,17 @@ class ReportRefinementTools:
             | llm
         )
 
+        # Inject retrieved evidence into the section content to allow RAG
+        section_content_for_llm = (
+            section_content
+            + ("\n\nRetrieved Evidence:\n" + evidence if evidence else "")
+        )
+
         response = chain.invoke(
             {
-                "section_name":
-                section_name,
-
-                "section_content":
-                section_content,
-
-                "refinement_query":
-                refinement_query,
+                "section_name": section_name,
+                "section_content": section_content_for_llm,
+                "refinement_query": refinement_query,
             }
         )
 
@@ -234,6 +324,43 @@ class ReportRefinementTools:
                 updated_section
             )
 
+        # Sanitize model output: if the LLM returned a full report,
+        # try to extract just the targeted section. Also remove
+        # accidental leading H1/H2 headings or repeated inline titles.
+        try:
+            cleaned = updated_section.strip()
+
+            # If the model returned a full report (contains multiple ## headings),
+            # extract the section matching section_name.
+            extracted = ReportSectionTools.extract_sections(cleaned)
+            normalized = ReportSectionTools.normalize_section_name(section_name)
+            if normalized in extracted.get("sections", {}):
+                cleaned = extracted["sections"][normalized]
+            else:
+                # Remove any leading document-level title lines (e.g. "# Title")
+                cleaned = cleaned.lstrip()
+                # Normalize newlines
+                cleaned = cleaned.replace("\r\n", "\n")
+
+                # Strip any leading H1/H2 headings
+                cleaned_lines = cleaned.splitlines()
+                while cleaned_lines and cleaned_lines[0].strip().startswith("#"):
+                    cleaned_lines = cleaned_lines[1:]
+
+                cleaned = "\n".join(cleaned_lines).lstrip()
+
+                # remove leading duplicated inline section title
+                first_split = cleaned.split("\n", 1)
+                if len(first_split) > 1:
+                    first_line = first_split[0].strip().lower()
+                    norm_title = section_name.strip().lower()
+                    if first_line == norm_title:
+                        cleaned = first_split[1].lstrip()
+
+            updated_section = cleaned
+        except Exception:
+            updated_section = str(updated_section).strip()
+
         return (
             updated_section
             .strip()[
@@ -248,6 +375,9 @@ class ReportRefinementTools:
         report_topic: str,
         refinement_query: str,
         existing_sections: list[str],
+        report_title: str = "",
+        session_id: str = "",
+        retrieved_documents: list[dict] | None = None,
     ) -> str:
         """
         Generate lightweight new section.
@@ -259,6 +389,77 @@ class ReportRefinementTools:
                 .MAX_REFINEMENT_QUERY
             ]
         )
+
+        evidence = ""
+
+        # Use retrieved documents from retrieval agent if provided
+        if retrieved_documents:
+            try:
+                entries = []
+                for d in retrieved_documents[:6]:
+                    title = d.get("title") or d.get("section") or ""
+                    src = d.get("source", "external")
+                    content = d.get("content") or (d.get("document").page_content if d.get("document") else "")
+                    snippet = (content or "")[:1200]
+                    entries.append(f"{title} — {src}\n{snippet}\n\n")
+                evidence = "".join(entries)
+            except Exception:
+                evidence = ""
+
+        # Otherwise fall back to inline session_id-based search
+        elif session_id:
+            try:
+                query = f"{report_title} {section_name} {refinement_query} {report_topic[:300]}".strip()
+                sub_query = SubQuery(query=query, domain=Domain.WEB, priority=3)
+
+                candidates: list = []
+                try:
+                    candidates += SearchTools.search_web(sub_query, max_results=4)
+                except Exception:
+                    pass
+
+                try:
+                    candidates += SearchTools.search_wikipedia(sub_query)
+                except Exception:
+                    pass
+
+                docs = SearchTools.deduplicate_documents(candidates)
+
+                try:
+                    vector_store = VectorStoreManager.get_vector_store(session_id=session_id)
+                    lc_docs = []
+                    ids = []
+                    for d in docs:
+                        content = d.content if isinstance(d.content, str) else str(d.content)
+                        if not content.strip():
+                            continue
+                        lc_docs.append(
+                            LangchainDocument(
+                                page_content=content,
+                                metadata={
+                                    "chunk_type": "external",
+                                    "source": d.source.value if hasattr(d.source, "value") else str(d.source),
+                                    "title": d.title,
+                                    "url": d.url,
+                                    "session_id": session_id,
+                                },
+                            )
+                        )
+                        ids.append(str(uuid4()))
+
+                    if lc_docs:
+                        vector_store.add_documents(documents=lc_docs, ids=ids)
+                except Exception:
+                    pass
+
+                evidence = ""
+                for d in docs[:4]:
+                    title = d.title or ""
+                    src = d.source.value if hasattr(d.source, "value") else str(d.source)
+                    snippet = (d.content or "")[:1200]
+                    evidence += f"{title} — {src}\n{snippet}\n\n"
+            except Exception:
+                evidence = ""
 
         llm = (
             LLMFactory
@@ -299,21 +500,19 @@ class ReportRefinementTools:
             | llm
         )
 
+        # Inject retrieved evidence into the refinement query for RAG
+        refinement_with_evidence = (
+            refinement_query + "\n\nRetrieved Evidence:\n" + evidence
+            if evidence
+            else refinement_query
+        )
+
         response = chain.invoke(
             {
-                "topic":
-                report_topic,
-
-                "existing_sections":
-                ", ".join(
-                    existing_sections
-                ),
-
-                "section_name":
-                section_name,
-
-                "refinement_query":
-                refinement_query,
+                "topic": report_topic,
+                "existing_sections": ", ".join(existing_sections),
+                "section_name": section_name,
+                "refinement_query": refinement_with_evidence,
             }
         )
 
@@ -356,6 +555,29 @@ class ReportRefinementTools:
             new_section = str(
                 new_section
             )
+
+        # Sanitize generated new section similarly to refined sections.
+        try:
+            cleaned = new_section.strip()
+            extracted = ReportSectionTools.extract_sections(cleaned)
+            normalized = ReportSectionTools.normalize_section_name(section_name)
+            if normalized in extracted.get("sections", {}):
+                cleaned = extracted["sections"][normalized]
+            else:
+                cleaned = cleaned.replace("\r\n", "\n")
+                cleaned_lines = cleaned.splitlines()
+                while cleaned_lines and cleaned_lines[0].strip().startswith("#"):
+                    cleaned_lines = cleaned_lines[1:]
+                cleaned = "\n".join(cleaned_lines).lstrip()
+                first_split = cleaned.split("\n", 1)
+                if len(first_split) > 1:
+                    first_line = first_split[0].strip().lower()
+                    norm_title = section_name.strip().lower()
+                    if first_line == norm_title:
+                        cleaned = first_split[1].lstrip()
+            new_section = cleaned
+        except Exception:
+            new_section = str(new_section).strip()
 
         return (
             new_section

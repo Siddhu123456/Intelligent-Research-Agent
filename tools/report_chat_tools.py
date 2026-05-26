@@ -55,13 +55,6 @@ class ReportChatTools:
             )
         )
 
-        compressed_report_context = (
-            state.get(
-                "compressed_report_context",
-                "",
-            )
-        )
-
         # Defensive normalization
 
         if not isinstance(
@@ -71,15 +64,6 @@ class ReportChatTools:
 
             conversation_context = str(
                 conversation_context
-            )
-
-        if not isinstance(
-            compressed_report_context,
-            str,
-        ):
-
-            compressed_report_context = str(
-                compressed_report_context
             )
 
         lowered_question = (
@@ -136,21 +120,45 @@ class ReportChatTools:
             for keyword in summary_keywords
         ):
 
-            report_context = (
-                compressed_report_context
+            # Use semantic RAG to build a concise summary
+            try:
+                retrieved_sections = (
+                    ReportVectorTools
+                    .semantic_report_search(
+                        query=question,
+                        session_id=session_id,
+                    )
+                )
+            except Exception:
+                retrieved_sections = []
+
+            report_context = "\n\n".join(
+                [
+                    (
+                        f"Section: "
+                        f"{section['section']}\n\n"
+                        f"{section['content']}"
+                    )
+                    for section in (
+                        retrieved_sections
+                    )
+                ]
             )
 
         # DEFAULT → SEMANTIC RAG
 
         else:
 
-            retrieved_sections = (
-                ReportVectorTools
-                .semantic_report_search(
-                    query=question,
-                    session_id=session_id,
+            try:
+                retrieved_sections = (
+                    ReportVectorTools
+                    .semantic_report_search(
+                        query=question,
+                        session_id=session_id,
+                    )
                 )
-            )
+            except Exception:
+                retrieved_sections = []
 
             report_context = "\n\n".join(
                 [
@@ -189,6 +197,7 @@ class ReportChatTools:
             LLMFactory
             .create_qwen_llm(
                 temperature=0.2,
+                streaming=True,
             )
         )
 
@@ -345,13 +354,6 @@ class ReportChatTools:
             )
         )
 
-        compressed_report_context = (
-            state.get(
-                "compressed_report_context",
-                "",
-            )
-        )
-
         # Defensive normalization
 
         if not isinstance(
@@ -361,15 +363,6 @@ class ReportChatTools:
 
             conversation_context = str(
                 conversation_context
-            )
-
-        if not isinstance(
-            compressed_report_context,
-            str,
-        ):
-
-            compressed_report_context = str(
-                compressed_report_context
             )
 
         lowered_question = (
@@ -426,8 +419,26 @@ class ReportChatTools:
             for keyword in summary_keywords
         ):
 
-            report_context = (
-                compressed_report_context
+            # Use semantic RAG to build a concise summary
+            retrieved_sections = (
+                ReportVectorTools
+                .semantic_report_search(
+                    query=question,
+                    session_id=session_id,
+                )
+            )
+
+            report_context = "\n\n".join(
+                [
+                    (
+                        f"Section: "
+                        f"{section['section']}\n\n"
+                        f"{section['content']}"
+                    )
+                    for section in (
+                        retrieved_sections
+                    )
+                ]
             )
 
         # DEFAULT → SEMANTIC RAG

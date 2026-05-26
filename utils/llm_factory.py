@@ -21,9 +21,9 @@ class LLMFactory:
             model="qwen/qwen3-32b",
             temperature=temperature,
             api_key=settings.groq_api_key,
-            streaming=streaming,
             reasoning_format="hidden",
-        )  
+            streaming=streaming,
+        )
         
     @staticmethod
     def create_groq_tool_llm(
