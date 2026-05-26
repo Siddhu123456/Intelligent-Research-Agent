@@ -155,10 +155,10 @@ def section_header(num, title, st):
     ])
 
 def body(text, st):
-    return Paragraph(text, st["body"])
+    return Paragraph(format_inline_markup(text), st["body"])
 
 def subhead(text, st):
-    return Paragraph(text, st["subhead"])
+    return Paragraph(format_inline_markup(text), st["subhead"])
 
 def tag_row(items, st):
     """Render small pill-style tags in a single paragraph."""
@@ -171,6 +171,89 @@ def tag_row(items, st):
     ))
 
 
+def format_inline_markup(text):
+    """Convert markdown-style inline formatting into ReportLab paragraph markup."""
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    text = re.sub(r"__(.+?)__", r"<b>\1</b>", text)
+    text = re.sub(r"\*(.+?)\*", r"<i>\1</i>", text)
+    text = re.sub(r"_(.+?)_", r"<i>\1</i>", text)
+    return text
+
+
+def list_item(text, st, bullet="•"):
+    list_style = ParagraphStyle(
+        "list_item",
+        parent=st["body"],
+        leftIndent=12,
+        bulletIndent=0,
+        spaceBefore=0,
+        spaceAfter=4,
+    )
+    return Paragraph(
+        format_inline_markup(text),
+        list_style,
+        bulletText=bullet,
+    )
+
+
+def render_markdown_content(story, text, st, paragraph_style=None):
+    if paragraph_style is None:
+        paragraph_style = st["body"]
+
+    lines = text.split("\n")
+    paragraph_buffer = []
+    list_buffer = []
+
+    def flush_paragraph():
+        if paragraph_buffer:
+            paragraph_text = " ".join(paragraph_buffer).strip()
+            if paragraph_text:
+                story.append(Paragraph(format_inline_markup(paragraph_text), paragraph_style))
+            paragraph_buffer.clear()
+
+    def flush_list():
+        if list_buffer:
+            for item in list_buffer:
+                story.append(list_item(item["text"], st, bullet=item["bullet"]))
+            list_buffer.clear()
+
+    for line in lines:
+        stripped = line.strip()
+
+        if not stripped:
+            flush_paragraph()
+            flush_list()
+            continue
+
+        heading_match = re.match(r"^#{1,4}\s+(.+)$", stripped)
+        if heading_match:
+            flush_paragraph()
+            flush_list()
+            heading_text = heading_match.group(1).strip()
+            if heading_text:
+                story.append(subhead(heading_text, st))
+            continue
+
+        list_match = re.match(r"^([-*+]|\d+\.)\s+(.+)$", stripped)
+        if list_match:
+            flush_paragraph()
+            bullet = list_match.group(1)
+            if re.match(r"^\d+\.$", bullet):
+                bullet = bullet
+            else:
+                bullet = "•"
+            list_buffer.append({
+                "text": list_match.group(2).strip(),
+                "bullet": bullet,
+            })
+            continue
+
+        paragraph_buffer.append(stripped)
+
+    flush_paragraph()
+    flush_list()
+
+
 def render_paragraph_text(
     story,
     text,
@@ -178,37 +261,7 @@ def render_paragraph_text(
     paragraph_style,
 ):
     """Render multiline text as paragraph flowables, preserving markdown subheadings."""
-    lines = text.split("\n")
-    paragraph_buffer = []
-
-    def flush_paragraph():
-        if paragraph_buffer:
-            paragraph_text = " ".join(paragraph_buffer).strip()
-            if paragraph_text:
-                story.append(
-                    Paragraph(
-                        paragraph_text,
-                        paragraph_style,
-                    )
-                )
-            paragraph_buffer.clear()
-
-    for line in lines:
-        stripped = line.strip()
-
-        if not stripped:
-            flush_paragraph()
-            continue
-
-        heading_match = re.match(r"^(#{1,4})\s+(.+)$", stripped)
-        if heading_match:
-            flush_paragraph()
-            heading_text = heading_match.group(2).strip()
-            continue
-
-        paragraph_buffer.append(stripped)
-
-    flush_paragraph()
+    render_markdown_content(story, text, st, paragraph_style)
 
 
 # ── Cover page (drawn in onFirstPage callback) ────────────────────────────────
@@ -377,9 +430,18 @@ def build_report(st, sections=None, references=None):
 
         if i == 0:
             # First section → abstract callout box for short summaries.
-            text = content if isinstance(content, str) else " ".join(
-                b.get("text", "") for b in content
-            )
+            if isinstance(content, str):
+                text = content
+                lines = content.split("\n")
+            else:
+                normalized_blocks = []
+                for block in content:
+                    if isinstance(block, dict):
+                        normalized_blocks.append(str(block.get("text", "")))
+                    else:
+                        normalized_blocks.append(str(block))
+                text = " ".join(normalized_blocks)
+                lines = "\n".join(normalized_blocks).split("\n")
 
             use_abstract_table = (
                 isinstance(content, str)
@@ -388,116 +450,84 @@ def build_report(st, sections=None, references=None):
                 and not re.search(r"^#{1,4}\s+", text, flags=re.MULTILINE)
             )
 
-            if use_abstract_table:
-                abstract_table = Table(
-                    [[Paragraph(text, st["abstract"])]],
-                    colWidths=[PAGE_W - ML - MR]
-                )
-
-                abstract_table.setStyle(TableStyle([
-                    ("BACKGROUND",    (0, 0), (-1, -1), BG_TAG),
-                    ("LEFTPADDING",   (0, 0), (-1, -1), 10),
-                    ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
-                    ("TOPPADDING",    (0, 0), (-1, -1), 10),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-                    ("LINERIGHT",     (0, 0), (0,  -1),  3, ACCENT_RED),
-                ]))
-
-                story.append(abstract_table)
-            else:
-                render_paragraph_text(
-                    story,
-                    text,
-                    st,
-                    st["abstract"],
-                )
-
-        elif isinstance(
-            content,
-            str,
-        ):
-
-            lines = (
-                content.split(
-                    "\n"
-                )
-            )
-
             paragraph_buffer = []
+            list_buffer = []
 
             def flush_paragraph():
-
-                if (
-                    paragraph_buffer
-                ):
-
-                    paragraph_text = (
-                        " ".join(
-                            paragraph_buffer
-                        )
-                        .strip()
+                if paragraph_buffer:
+                    paragraph_text = format_inline_markup(
+                        " ".join(paragraph_buffer).strip()
                     )
-
                     if paragraph_text:
-
-                        story.append(
-                            body(
-                                paragraph_text,
-                                st,
-                            )
-                        )
-
+                        story.append(body(paragraph_text, st))
                     paragraph_buffer.clear()
 
-            for line in lines:
+            def flush_list():
+                if list_buffer:
+                    for item in list_buffer:
+                        story.append(
+                            list_item(item["text"], st, bullet=item["bullet"])
+                        )
+                    list_buffer.clear()
 
-                stripped = (
-                    line.strip()
-                )
+            for line in lines:
+                stripped = line.strip()
 
                 if not stripped:
-
                     flush_paragraph()
-
+                    flush_list()
                     continue
 
                 # ### Markdown subheads
-
-                if re.match(
-                    r"^#{3,4}\s+",
-                    stripped,
-                ):
-
+                heading_match = re.match(r"^#{1,4}\s+(.+)$", stripped)
+                if heading_match:
                     flush_paragraph()
-
-                    heading_text = re.sub(
-                        r"^#{3,4}\s+",
-                        "",
-                        stripped,
-                    ).strip()
-
+                    flush_list()
+                    heading_text = heading_match.group(1).strip()
                     if heading_text:
-
-                        story.append(
-                            subhead(
-                                heading_text,
-                                st,
-                            )
-                        )
-
+                        story.append(subhead(heading_text, st))
                     continue
 
-                paragraph_buffer.append(
-                    stripped
-                )
+                list_match = re.match(r"^([-*+]|\d+\.)\s+(.+)$", stripped)
+                if list_match:
+                    flush_paragraph()
+                    bullet = list_match.group(1)
+                    if re.match(r"^\d+\.$", bullet):
+                        bullet = bullet
+                    else:
+                        bullet = "•"
+                    list_buffer.append({
+                        "text": list_match.group(2).strip(),
+                        "bullet": bullet,
+                    })
+                    continue
+
+                paragraph_buffer.append(stripped)
 
             flush_paragraph()
+            flush_list()
 
         else:
-            for block in content:
-                if block.get("heading"):
-                    story.append(subhead(block["heading"], st))
-                story.append(body(block["text"], st))
+            if isinstance(content, str):
+                render_markdown_content(story, content, st)
+            else:
+                for block in content:
+                    if isinstance(block, str):
+                        render_markdown_content(story, block, st)
+                        continue
+
+                    if isinstance(block, dict):
+                        if block.get("heading"):
+                            story.append(subhead(block["heading"], st))
+
+                        text = block.get("text", "")
+                        if isinstance(text, list):
+                            text = "\n".join(str(t) for t in text)
+
+                        render_markdown_content(story, str(text), st)
+                        continue
+
+                    render_markdown_content(story, str(block), st)
 
     # References
 

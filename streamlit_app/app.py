@@ -391,7 +391,11 @@ with col_input:
         ),
     )
 with col_btn:
-    generate_clicked = st.button("Generate →", use_container_width=True)
+    generate_clicked = st.button(
+        "Generate →",
+        use_container_width=True,
+        disabled=bool(active_report),
+    )
 
 if generate_clicked:
     if not query.strip():
