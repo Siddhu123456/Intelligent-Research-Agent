@@ -8,11 +8,18 @@ from state.constants import (
 
 from state.models import (
     SubQuery,
-    SubQueryList,
+)
+
+from utils.json_parser import (
+    JSONParser,
 )
 
 from utils.llm_factory import (
     LLMFactory,
+)
+
+from tools.prompts.decompose_tools_prompts import (
+    DECOMPOSE_SYSTEM_PROMPT,
 )
 
 
@@ -36,125 +43,25 @@ class DecompositionTools:
             )
         )
 
-        structured_llm = (
-            llm.with_structured_output(
-                SubQueryList,
+        prompt = (
+            ChatPromptTemplate
+            .from_messages(
+                [
+                    (
+                        "system",
+                        DECOMPOSE_SYSTEM_PROMPT,
+                    ),
+                    (
+                        "human",
+                        "{query}",
+                    ),
+                ]
             )
         )
 
-        prompt = (
-                    ChatPromptTemplate
-                    .from_messages(
-                        [
-                            (
-                                "system",
-                                (
-                                    "You are an advanced "
-                                    "research query "
-                                    "decomposition agent.\n\n"
-
-                                    "Your task:\n"
-                                    "Break the research query "
-                                    "into high-quality retrieval "
-                                    "sub-queries optimized for "
-                                    "multi-source research.\n\n"
-
-                                    "PRIMARY GOAL:\n"
-                                    "Generate diverse retrieval "
-                                    "coverage across multiple "
-                                    "knowledge sources.\n\n"
-
-                                    "RULES:\n"
-                                    "- generate between 2 and 5 "
-                                    "sub-queries\n"
-                                    "- each query must target "
-                                    "a different research aspect\n"
-                                    "- keep each query concise "
-                                    "and searchable\n"
-                                    "- prefer keyword-rich "
-                                    "search phrases\n"
-                                    "- avoid repeating the "
-                                    "same wording\n"
-                                    "- avoid generic queries\n"
-                                    "- avoid conversational "
-                                    "phrasing\n"
-                                    "- do not answer the query\n\n"
-
-                                    "DOMAIN BALANCING:\n"
-                                    "- ALWAYS include at least one WEB query\n"
-                                    "- web should be the primary retrieval source\n"
-                                    "- prefer WEB for practical "
-                                    "and modern information\n"
-                                    "- use wikipedia for "
-                                    "foundational understanding\n"
-                                    "- avoid domain bias\n"
-                                    "- select domains based on "
-                                    "query intent\n"
-                                    "- distribute queries across "
-                                    "multiple domains whenever "
-                                    "possible\n\n"
-
-                                    "AVAILABLE DOMAINS:\n\n"
-
-                                    "1. web\n"
-                                    "- tutorials\n"
-                                    "- industry articles\n"
-                                    "- practical applications\n"
-                                    "- news\n"
-                                    "- implementation guides\n"
-                                    "- modern trends\n"
-                                    "- real-world examples\n"
-                                    "- case studies\n"
-                                    "- tools and frameworks\n\n"
-
-                                    "2. wikipedia\n"
-                                    "- concepts\n"
-                                    "- definitions\n"
-                                    "- historical background\n"
-                                    "- foundational understanding\n"
-                                    "- terminology\n"
-                                    "- theoretical explanations\n\n"
-
-                                    "IMPORTANT:\n"
-                                    "- most research queries "
-                                    "should primarily use "
-                                    "web retrieval\n"
-                                    "- wikipedia should support "
-                                    "conceptual understanding\n"
-                                    "- prefer balanced retrieval "
-                                    "coverage\n"
-                                    "- avoid generating overly "
-                                    "broad retrieval queries\n\n"
-
-                                    "GOOD EXAMPLE:\n\n"
-
-                                    "Query:\n"
-                                    "'Quantum computing applications'\n\n"
-
-                                    "Balanced Output:\n"
-                                    "- quantum computing definition "
-                                    "(wikipedia)\n"
-                                    "- quantum computing use cases "
-                                    "(web)\n"
-                                    "- industry quantum adoption "
-                                    "(web)\n"
-                                    "- quantum computing history "
-                                    "(wikipedia)\n\n"
-
-                                    "Return structured output only."
-                                ),
-                            ),
-                            (
-                                "human",
-                                "{query}",
-                            ),
-                        ]
-                    )
-                )
-
         chain = (
             prompt
-            | structured_llm
+            | llm
         )
 
         response = chain.invoke(
@@ -163,7 +70,44 @@ class DecompositionTools:
             }
         )
 
-        return response.sub_queries
+        parsed_response = (
+            JSONParser.safe_extract(
+                content=response.content,
+                fallback={
+                    "sub_queries": [],
+                },
+            )
+        )
+
+        sub_queries_data = (
+            parsed_response.get(
+                "sub_queries",
+                [],
+            )
+        )
+
+        sub_queries: list[SubQuery] = []
+
+        for item in sub_queries_data:
+
+            try:
+
+                sub_queries.append(
+                    SubQuery(
+                        query=item["query"],
+                        domain=item["domain"],
+                        priority=item.get(
+                            "priority",
+                            3,
+                        ),
+                    )
+                )
+
+            except Exception:
+
+                continue
+
+        return sub_queries
 
     @staticmethod
     def validate_sub_queries(
@@ -172,6 +116,14 @@ class DecompositionTools:
         """Validate decomposed sub-queries."""
 
         if not sub_queries:
+
+            return False
+
+        if (
+            len(sub_queries)
+            < DecompositionTools
+            .MIN_SUB_QUERIES
+        ):
 
             return False
 
@@ -194,8 +146,6 @@ class DecompositionTools:
             for sub_query in sub_queries
         }
 
-        # Require retrieval diversity
-
         if len(domains_used) < 2:
 
             return False
@@ -209,7 +159,5 @@ class DecompositionTools:
                 sub_query.domain
                 in valid_domains
             )
-            for sub_query in (
-                sub_queries
-            )
+            for sub_query in sub_queries
         )

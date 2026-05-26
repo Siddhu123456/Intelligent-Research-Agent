@@ -10,6 +10,11 @@ from utils.llm_factory import (
     LLMFactory,
 )
 
+from tools.prompts.context_tools_prompts import (
+    CONTEXT_TOOLS_REFINE_QUERY_PROMPT,
+    CONTEXT_TOOLS_REWRITE_QUERY_PROMPT,
+)
+
 
 class ContextTools:
     """Tools for contextual query rewriting."""
@@ -52,53 +57,7 @@ class ContextTools:
             )
         )
 
-        prompt = f"""
-                        You are a contextual query rewriting agent.
-
-                        Your task:
-                        Convert conversational queries into
-                        standalone explicit research queries.
-
-                        Conversation Context:
-                        {conversation_context}
-
-                        Current User Query:
-                        {query}
-
-                        Rules:
-                        - preserve original meaning
-                        - resolve references like:
-                        it, they, them, this, that
-                        - make the query standalone
-                        - keep the query concise
-                        - do not answer the query
-                        - return only valid JSON
-
-                        Format:
-                        {{
-                        "rewritten_query": "..."
-                        }}
-
-                        Examples:
-
-                        Input:
-                        "What are its applications?"
-
-                        Output:
-                        {{
-                        "rewritten_query":
-                        "What are the applications of quantum computing?"
-                        }}
-
-                        Input:
-                        "What about recent advancements?"
-
-                        Output:
-                        {{
-                        "rewritten_query":
-                        "What are the recent advancements in quantum computing?"
-                        }}
-                        """
+        prompt = CONTEXT_TOOLS_REWRITE_QUERY_PROMPT.format(conversation_context=conversation_context, query=query)
 
         response = llm.invoke(
             prompt,
@@ -150,29 +109,7 @@ class ContextTools:
             )
         )
 
-        prompt = f"""
-You are a research query refinement agent.
-
-Your task:
-Refine the following research query
-to improve retrieval quality.
-
-Query:
-{query}
-
-Rules:
-- preserve original meaning
-- make query more specific
-- improve searchability
-- keep the query concise
-- do not answer the query
-- return only valid JSON
-
-Format:
-{{
-  "refined_query": "..."
-}}
-"""
+        prompt = CONTEXT_TOOLS_REFINE_QUERY_PROMPT.format(query=query)
 
         response = llm.invoke(
             prompt,
