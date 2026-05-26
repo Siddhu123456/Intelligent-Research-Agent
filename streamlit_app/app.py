@@ -108,6 +108,7 @@ for key, default in [
     ("chat_input",       ""),
     ("last_action",      ""),
     ("research_query",   ""),
+    ("version_pdfs",     {}),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -175,7 +176,11 @@ def run_workflow(state, label: str = "Running workflow…"):
                     event["state"]
                 )
 
-        return final_state
+        return (
+            final_state
+            if final_state is not None
+            else state
+        )
 
     with st.status(label, expanded=True) as status:
 
@@ -189,9 +194,31 @@ def run_workflow(state, label: str = "Running workflow…"):
 
         except Exception as error:
 
-            st.error(
-                f"Workflow Error: {error}"
-            )
+            error_message = str(error)
+
+            if (
+                "rate_limit_exceeded"
+                in error_message
+                or "Rate limit reached"
+                in error_message
+                or "429"
+                in error_message
+            ):
+
+                st.error(
+                    "⚠️ Rate limit reached.\n\n"
+                    "The language model provider "
+                    "is temporarily overloaded. "
+                    "Please wait a few seconds "
+                    "and try again."
+                )
+
+            else:
+
+                st.error(
+                    f"Workflow Error: "
+                    f"{error_message}"
+                )
 
             result = state
 
@@ -199,11 +226,19 @@ def run_workflow(state, label: str = "Running workflow…"):
 
             loop.close()
 
-        status.update(
-            label="✓ Done",
-            state="complete",
-            expanded=False,
-        )
+        if result.get("error"):
+            status.update(
+                label="✗ Failed",
+                state="error",
+                expanded=False,
+            )
+
+        else:
+            status.update(
+                label="✓ Done",
+                state="complete",
+                expanded=False,
+            )
 
     return result
 
@@ -218,14 +253,29 @@ with st.sidebar:
             VectorStoreManager.clear_persisted_data()
         except Exception:
             pass
-        for key in (
-            "state",
-            "refinement_input",
-            "chat_input",
-            "last_action",
-            "research_query",
-        ):
-            st.session_state[key] = None if key == "state" else ""
+        
+        st.session_state["state"] = None
+
+        st.session_state[
+            "refinement_input"
+        ] = ""
+
+        st.session_state[
+            "chat_input"
+        ] = ""
+
+        st.session_state[
+            "last_action"
+        ] = ""
+
+        st.session_state[
+            "research_query"
+        ] = ""
+
+        st.session_state[
+            "version_pdfs"
+        ] = {}
+        
         st.rerun()
 
     st.divider()
@@ -263,6 +313,41 @@ with st.sidebar:
 st.title("AI Research Workspace")
 st.caption("Multi-source analysis · Professional reports · Iterative refinement")
 st.divider()
+
+workflow_error = (
+    st.session_state.state.get(
+        "error"
+    )
+    if st.session_state.state
+    else None
+)
+
+if workflow_error:
+
+    clean_error = str(
+        workflow_error
+    )
+
+    if (
+        "rate_limit_exceeded"
+        in clean_error
+        or "Rate limit reached"
+        in clean_error
+        or "429"
+        in clean_error
+    ):
+
+        st.warning(
+            "⚠️ API rate limit reached.\n\n"
+            "Please wait a few seconds "
+            "before retrying report generation."
+        )
+
+    else:
+
+        st.error(
+            clean_error
+        )
 
 # ── Active report workspace ───────────────────────────────────────────────────
 active_report = (
@@ -306,7 +391,11 @@ with col_input:
         ),
     )
 with col_btn:
-    generate_clicked = st.button("Generate →", use_container_width=True)
+    generate_clicked = st.button(
+        "Generate →",
+        use_container_width=True,
+        disabled=bool(active_report),
+    )
 
 if generate_clicked:
     if not query.strip():
@@ -325,11 +414,16 @@ if generate_clicked:
             st.session_state.state       = result
             st.session_state["research_query"] = query
             st.session_state.last_action = "report_generated"
-            st.rerun()
+
         except Exception as e:
             st.error(f"Error: {e}")
 
-if st.session_state.state and active_report:
+if (
+    st.session_state.state
+    and st.session_state.state.get(
+        "active_report"
+    )
+):
     st.divider()
     tab_report, tab_chat, tab_history = st.tabs(["📄 Report", "💬 Chat", "🕓 Versions"])
 
@@ -340,8 +434,10 @@ if st.session_state.state and active_report:
             st.session_state.last_action = ""
 
         st.markdown(
-            active_report,
-            unsafe_allow_html=True,
+            st.session_state.state.get(
+                "active_report",
+                "",
+            )
         )
         st.divider()
 
@@ -358,9 +454,14 @@ if st.session_state.state and active_report:
                         query=st.session_state.state["query"],
                         mode="DOCUMENT_GENERATION",
                     )
-                    result = run_workflow(wf_state, "Generating PDF…")
-                    st.session_state.state = result
-                    st.rerun()
+                    result = run_workflow(
+                        wf_state,
+                        "Generating PDF…",
+                    )
+
+                    if not result.get("error"):
+                        st.session_state.state = result
+
                 except Exception as e:
                     st.error(f"PDF Error: {e}")
 
@@ -497,20 +598,18 @@ if st.session_state.state and active_report:
                     )
                 )
 
-                desc = str(
-                    version.get(
-                        "description",
-                        version.get(
-                            "mode",
-                            "Unknown",
-                        ),
+                timestamp = str(version.get("timestamp", ""))
+                report_text = str(version.get("report", "")).strip()
+                
+                if not report_text:
+                    st.warning(
+                        "No report content found "
+                        "for this version."
                     )
-                )
-                ts          = str(version.get("timestamp", ""))
-                report_text = str(version.get("report", ""))
+                    continue
 
                 with st.expander(
-                    f"{title} · Version {idx} · {ts}"
+                    f"{title} · Version {idx} · {timestamp}"
                 ):
                     if version.get("updated_section"):
                         st.caption(f"Updated section: {version['updated_section']}")
@@ -518,51 +617,122 @@ if st.session_state.state and active_report:
                     st.markdown(report_text)
                     st.divider()
 
+                    version_key = (
+                        timestamp
+                        .replace(":", "-")
+                        .replace(" ", "_")
+                    )
+
                     if st.button(
-                        f"Generate & Download PDF — Version {idx}",
-                        key=f"download_version_{idx}",
+                        f"Generate & Download PDF — Version {timestamp}",
+                        key=f"download_version_{version_key}",
                         use_container_width=True,
                     ):
                         try:
-                            temp_state = dict(st.session_state.state)
-                            temp_state["active_report"] = report_text
-                            temp_state[
-                                "report_title"
-                            ] = version.get(
-                                "title",
-                                temp_state.get(
-                                    "report_title",
-                                    temp_state.get(
+                            version_state = (
+                                StateFactory
+                                .create_initial_state(
+                                    query=version.get(
                                         "query",
                                         "Research Report",
-                                    ),
-                                ),
+                                    )
+                                )
                             )
-                            wf_state = StateManager.prepare_next_workflow(
-                                previous_state=temp_state,
-                                query=temp_state["query"],
-                                mode="DOCUMENT_GENERATION",
+
+                            version_state["mode"] = (
+                                "DOCUMENT_GENERATION"
                             )
-                            result = run_workflow(wf_state, "Generating PDF…")
-                            generated_pdf = result.get("generated_pdf")
+
+                            version_state["active_report"] = (
+                                report_text
+                            )
+
+                            version_state["report_title"] = (
+                                version.get(
+                                    "title",
+                                    "Research Report",
+                                )
+                            )
+
+                            version_state["report_sections"] = (
+                                version.get(
+                                    "report_sections",
+                                    {},
+                                )
+                            )
+
+                            version_state["report_section_order"] = (
+                                version.get(
+                                    "report_section_order",
+                                    [],
+                                )
+                            )
+
+                            version_state["generated_pdf"] = None
+                            
+                            result = run_workflow(
+                                version_state,
+                                "Generating PDF…"
+                            )
+
+                            generated_pdf = (
+                                result.get(
+                                    "generated_pdf"
+                                )
+                            )
+
                             if generated_pdf:
-                                st.success("✓ PDF generated successfully.")
-                                safe_name = (
-                                    title
-                                    .lower()
-                                    .replace(" ", "_")
-                                    .replace("/", "_")
+                                version_pdfs = (
+                                    st.session_state[
+                                        "version_pdfs"
+                                    ].copy()
                                 )
-                                st.download_button(
-                                    label="⬇ Download PDF",
-                                    data=generated_pdf,
-                                    file_name=f"{safe_name}_version_{idx}.pdf",
-                                    mime="application/pdf",
-                                    key=f"pdf_download_{idx}",
-                                    use_container_width=True,
-                                )
+                                version_pdfs[version_key] = {
+                                    "pdf": generated_pdf,
+                                    "title": title,
+                                }
+                                st.session_state[
+                                    "version_pdfs"
+                                ] = version_pdfs
+
+                                st.rerun()
+                            
                         except Exception as e:
                             st.error(f"Version PDF Error: {e}")
+                    
+                    stored_pdf = (
+                        st.session_state
+                        .get(
+                            "version_pdfs",
+                            {},
+                        )
+                        .get(version_key)
+                    )
+
+                    if stored_pdf:
+
+                        st.success(
+                            "✓ PDF generated successfully."
+                        )
+
+                        safe_name = (
+                            stored_pdf["title"]
+                            .lower()
+                            .replace(" ", "_")
+                            .replace("/", "_")
+                        )
+
+                        st.download_button(
+                            label="⬇ Download PDF",
+                            data=stored_pdf["pdf"],
+                            file_name=(
+                                f"{safe_name}"
+                                f"_version_{idx}.pdf"
+                            ),
+                            mime="application/pdf",
+                            key=f"pdf_download_{version_key}",
+                            use_container_width=True,
+                        )
 
 else:
     if not st.session_state.state:

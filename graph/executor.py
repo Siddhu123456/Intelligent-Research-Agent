@@ -66,7 +66,7 @@ class GraphExecutor:
         events from LangGraph.
         """
 
-        final_state = None
+        final_state = {}
 
         previous_step = None
 
@@ -77,7 +77,31 @@ class GraphExecutor:
             )
         ):
 
-            final_state = state_update
+            # Smart merge:
+            # preserve meaningful values
+            # across incremental updates
+
+            if state_update:
+
+                for key, value in (
+                    state_update.items()
+                ):
+
+                    # Skip destructive empty overwrites
+
+                    if (
+                        key in final_state
+                        and value in [
+                            None,
+                            "",
+                            [],
+                            {},
+                        ]
+                    ):
+
+                        continue
+
+                    final_state[key] = value
 
             current_step = (
                 state_update.get(
@@ -86,7 +110,7 @@ class GraphExecutor:
                 )
             )
 
-            # Skip duplicate step updates
+            # Skip duplicate updates
 
             if (
                 current_step

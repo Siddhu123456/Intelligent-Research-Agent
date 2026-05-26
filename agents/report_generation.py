@@ -1,5 +1,3 @@
-import re
-
 from langsmith import (
     traceable,
 )
@@ -78,6 +76,20 @@ class ReportGenerationAgent:
                 ),
 
                 "report": report,
+
+                "report_sections": (
+                    state.get(
+                        "report_sections",
+                        {},
+                    )
+                ),
+
+                "report_section_order": (
+                    state.get(
+                        "report_section_order",
+                        [],
+                    )
+                ),
 
                 "mode": (
                     "REPORT_GENERATION"
@@ -282,7 +294,7 @@ class ReportGenerationAgent:
                 "REPORT_GENERATION",
             )
 
-            # ── Refinement workflow ───────────────────────
+            # Refinement workflow 
 
             if (
                 mode
@@ -299,7 +311,7 @@ class ReportGenerationAgent:
                     )
                 )
 
-            # ── Fresh report workflow ────────────────────
+            # Fresh report workflow
 
             else:
 
@@ -326,27 +338,6 @@ class ReportGenerationAgent:
             state[
                 "active_report"
             ] = report
-            
-            state[
-                "current_step"
-            ] = (
-                CurrentStep.DONE.value
-            )
-
-            logger.info(
-                "Compressing report context",
-            )
-
-            compressed_context = (
-                ReportCompressionTools
-                .compress_report(
-                    report=report,
-                )
-            )
-
-            state[
-                "compressed_report_context"
-            ] = compressed_context
 
             # ── Extract structured sections ──────────────
 
@@ -373,15 +364,6 @@ class ReportGenerationAgent:
             state[
                 "report_section_order"
             ] = (
-                extracted_data.get(
-                    "section_order",
-                    [],
-                )
-            )
-            
-            state[
-                "report_section_order"
-            ] = (
                 ReportSectionTools
                 .get_section_order(
                     state[
@@ -389,8 +371,7 @@ class ReportGenerationAgent:
                     ]
                 )
             )
-
-            # ── Store report embeddings ──────────────────
+            #  Store report embeddings 
 
             session_id = (
                 state.get(
@@ -431,8 +412,26 @@ class ReportGenerationAgent:
                 ),
                 session_id=session_id,
             )
+            
+            # ── Compress report ONLY for
+            # conversational memory / chat ───────────────
 
-            # ── Store report versions ────────────────────
+            logger.info(
+                "Compressing report context",
+            )
+
+            compressed_context = (
+                ReportCompressionTools
+                .compress_report(
+                    report=report,
+                )
+            )
+
+            state[
+                "compressed_report_context"
+            ] = compressed_context
+
+            #  Store report versions 
 
             (
                 ReportGenerationAgent
@@ -442,7 +441,7 @@ class ReportGenerationAgent:
                 )
             )
 
-            # ── Update conversational memory ─────────────
+            #  Update conversational memory 
 
             logger.info(
                 "Updating conversational memory",
@@ -461,7 +460,7 @@ class ReportGenerationAgent:
                 ),
             )
 
-            # ── Workflow completed ───────────────────────
+            #  Workflow completed 
 
             state[
                 "current_step"

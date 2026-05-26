@@ -136,6 +136,20 @@ class ReportRefinementAgent:
                     reconstructed_report
                 ),
 
+                "report_sections": (
+                    state.get(
+                        "report_sections",
+                        {},
+                    )
+                ),
+
+                "report_section_order": (
+                    state.get(
+                        "report_section_order",
+                        [],
+                    )
+                ),
+
                 "mode": (
                     "REPORT_REFINEMENT"
                 ),
