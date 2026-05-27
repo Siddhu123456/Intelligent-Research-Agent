@@ -37,14 +37,14 @@ def run_streaming_chat_workflow(state):
     return loop, generator_wrapper()
 
 
-# ── Page config ───────────────────────────────────────────────────────────────
+# Page config
 st.set_page_config(
     page_title="AI Research Workspace",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
+# CSS
 st.markdown(
     """
     <style>
@@ -240,7 +240,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── Agent step labels ─────────────────────────────────────────────────────────
+# Agent step labels
 AGENT_MESSAGES = {
     "supervisor_agent":          "Supervisor evaluating workflow…",
     "context_agent":             "Processing contextual query…",
@@ -254,7 +254,7 @@ AGENT_MESSAGES = {
     "error_recovery_agent":      "Handling workflow error…",
 }
 
-# ── Session state ─────────────────────────────────────────────────────────────
+# Session state
 for key, default in [
     ("state",            None),
     ("graph_executor",   None),
@@ -272,7 +272,7 @@ if st.session_state.graph_executor is None:
     st.session_state.graph_executor = GraphExecutor()
 
 
-# ── Workflow runner ───────────────────────────────────────────────────────────
+# Workflow runner
 def run_workflow(state, label: str = "Running workflow…"):
     executor = st.session_state.graph_executor
 
@@ -315,7 +315,7 @@ def run_workflow(state, label: str = "Running workflow…"):
     return result
 
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+# Sidebar
 with st.sidebar:
     st.title("Research Workspace")
     st.divider()
@@ -354,7 +354,7 @@ with st.sidebar:
         st.caption("No history yet.")
 
 
-# ── Main layout ───────────────────────────────────────────────────────────────
+# Main layout
 st.title("AI Research Workspace")
 st.caption("Multi-source analysis · Professional reports · Iterative refinement")
 st.divider()
@@ -378,7 +378,7 @@ if workflow_error:
     else:
         st.error(clean_error)
 
-# ── Active report ─────────────────────────────────────────────────────────────
+# Active report
 active_report = (
     st.session_state.state.get("active_report", "")
     if st.session_state.state else ""
@@ -386,7 +386,7 @@ active_report = (
 if not isinstance(active_report, str):
     active_report = str(active_report)
 
-# ── Research input ────────────────────────────────────────────────────────────
+# Research input
 col_input, col_btn = st.columns([5, 1])
 with col_input:
     query = st.text_input(
@@ -424,7 +424,7 @@ if generate_clicked:
             st.error(f"Error: {e}")
 
 
-# ── Workspace tabs ────────────────────────────────────────────────────────────
+# Workspace tabs
 if st.session_state.state and st.session_state.state.get("active_report"):
     st.divider()
     tab_report, tab_chat, tab_history = st.tabs(
@@ -432,7 +432,7 @@ if st.session_state.state and st.session_state.state.get("active_report"):
         key="report_workspace_tabs",
     )
 
-    # ── Tab 1: Report ─────────────────────────────────────────────────────────
+    # Tab 1: Report
     with tab_report:
         if st.session_state.last_action == "report_refined":
             st.success("✓ Report refined successfully.")
@@ -577,10 +577,10 @@ if st.session_state.state and st.session_state.state.get("active_report"):
                 except Exception as e:
                     st.error(f"Refinement Error: {e}")
 
-    # ── Tab 2: Chat ───────────────────────────────────────────────────────────
+    # Tab 2: Chat
     with tab_chat:
 
-        # ── Top bar ───────────────────────────────────────────────────────────────
+        # Top bar
         st.markdown("""
         <div style="
             display:flex; align-items:center; gap:8px;
@@ -598,7 +598,7 @@ if st.session_state.state and st.session_state.state.get("active_report"):
         </div>
         """, unsafe_allow_html=True)
 
-        # ── Message history ───────────────────────────────────────────────────────
+        # Message history
         chat_container = st.container(height=420, border=True)
 
         with chat_container:
@@ -617,10 +617,10 @@ if st.session_state.state and st.session_state.state.get("active_report"):
                     with st.chat_message("assistant"):
                         st.write(chat["answer"])
 
-        # ── Input ─────────────────────────────────────────────────────────────────
+        # Input
         chat_query = st.chat_input("Ask about the report…", key="report_chat_input")
 
-        # ── Handle submission ─────────────────────────────────────────────────────
+        # Handle submission
         if chat_query and chat_query.strip():
 
             # 1. Show the user message immediately (optimistic)
@@ -668,7 +668,7 @@ if st.session_state.state and st.session_state.state.get("active_report"):
             except Exception as e:
                 st.error(f"Chat error: {e}")
 
-    # ── Tab 3: Version History ────────────────────────────────────────────────
+    # Tab 3: Version History
     with tab_history:
         version_history = st.session_state.state.get("report_version_history", [])
 
