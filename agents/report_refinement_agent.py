@@ -404,6 +404,14 @@ class ReportRefinementAgent:
                     target_section
                 )
             )
+
+            # If classifier returned explicit no-section signal (e.g. deletion intent
+            # but no matching section), surface a clear error and stop.
+            if intent == "no_section":
+                logger.warning("No matching section found for deletion")
+                state["error"] = refinement_intent.get("message", "No section to delete")
+                state["current_step"] = CurrentStep.ERROR.value
+                return state
             
             # Fallback protection for
             # invalid target sections.
@@ -603,6 +611,34 @@ class ReportRefinementAgent:
                 for key in report_sections:
                     print(key)
 
+            # DELETE SECTION
+            elif (
+                intent
+                == "delete_section"
+            ):
+
+                logger.info(
+                    "Deleting section: %s",
+                    target_section,
+                )
+
+                if target_section in report_sections:
+                    report_sections, report_section_order = (
+                        ReportSectionTools.delete_section(
+                            sections=report_sections,
+                            section_order=report_section_order,
+                            section_name=target_section,
+                        )
+                    )
+
+                    logger.info("Section '%s' removed", target_section)
+
+                else:
+                    logger.warning("Requested section to delete not found: %s", target_section)
+                    state["error"] = "No section to delete"
+                    state["current_step"] = CurrentStep.ERROR.value
+                    return state
+
             # Reconstruct report
 
             logger.info(
@@ -668,6 +704,12 @@ class ReportRefinementAgent:
             
             # Update memory
 
+            assistant_msg = (
+                f"Deleted section: {target_section}"
+                if intent == "delete_section"
+                else f"Updated section: {target_section}"
+            )
+
             MemoryManager.update_memory(
                 state=state,
                 user_query=(
@@ -677,10 +719,7 @@ class ReportRefinementAgent:
                     ).strip()
                     or state["query"]
                 ),
-                assistant_response=(
-                    f"Updated section: "
-                    f"{target_section}"
-                ),
+                assistant_response=(assistant_msg),
             )
 
             state["current_step"] = (

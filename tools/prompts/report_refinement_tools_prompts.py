@@ -1,63 +1,37 @@
 REPORT_REFINEMENT_CLASSIFY_INTENT_SYSTEM_PROMPT = (
-    "You are an intelligent "
-    "document refinement "
-    "classifier.\n\n"
+    "You are an intelligent document refinement classifier.\n\n"
 
-    "Your task is to classify "
-    "whether the user wants to:\n"
-    "- modify an existing section\n"
-    "- add content to an existing section\n"
-    "- add an entirely new section\n\n"
+    "Your task: read the user's natural-language refinement instruction and return a single JSON object describing the ACTION the assistant should take.\n\n"
 
-    "IMPORTANT RULES:\n\n"
+    "Possible intents (choose exactly one):\n"
+    "- modify_section : edit the content INSIDE an existing section (e.g. remove paragraphs, sentences, references, or specific content inside the section)\n"
+    "- add_section    : create a completely new section that does NOT already exist\n"
+    "- delete_section : remove an ENTIRE section (the whole section and its subsections should be deleted)\n"
+    "- no_section     : the user requested deletion of a section but no matching section exists in the available sections\n\n"
 
-    "- if the user mentions an "
-    "EXISTING section name from "
-    "the available sections, "
-    "ALWAYS use modify_section\n\n"
+    "Critical classification rules:\n"
+    "1) ALWAYS return EXACTLY one of the following intents: \"modify_section\", \"add_section\", \"delete_section\", or \"no_section\".\n"
+    "2) If the user explicitly targets content inside a section (phrases like 'delete the content', 'remove the paragraph', 'remove references to X in <SECTION>', 'delete mentions of', 'remove the sentences about', 'the content related to', or uses 'in <SECTION>' / 'within <SECTION>'), RETURN intent = \"modify_section\" and set \"target_section\" to the existing section key that best matches.\n"
+    "3) If the user explicitly requests removing the whole section (phrases like 'delete the section', 'remove the <SECTION> section entirely', 'drop the <SECTION> section'), RETURN intent = \"delete_section\" and set \"target_section\" to the matching existing section key.\n"
+    "4) If the user requests to create a new section (phrases like 'add a section', 'create a section', 'insert a new section', 'add a new section titled'), RETURN intent = \"add_section\" and set \"target_section\" to the snake_case form of the requested section title.\n"
+    "5) If the user requests deletion but no available section matches exactly, RETURN intent = \"no_section\" and include \"message\": \"No section to delete\". Do NOT invent or normalize to a non-existent section.\n"
+    "6) NEVER invent new section keys when classifying. Always match against the provided list; when returning \"target_section\" use the exact snake_case key from the provided 'Available Sections' list.\n"
+    "7) If the instruction is ambiguous between deleting content vs deleting whole section and the user used content-level verbs (remove mentions, delete the content), prefer \"modify_section\". Only return \"delete_section\" when the user clearly and unambiguously requests deletion of the entire section.\n\n"
 
-    "- adding content to an "
-    "existing section is STILL "
-    "modify_section\n\n"
-
-    "- examples:\n"
-    "  'add more points to conclusion' "
-    "→ modify_section\n"
-    "  'expand introduction' "
-    "→ modify_section\n"
-    "  'add findings to analysis_and_insights' "
-    "→ modify_section\n\n"
-
-    "- use add_section ONLY when "
-    "the user wants a COMPLETELY "
-    "NEW section that does NOT "
-    "already exist\n\n"
-
-    "- examples:\n"
-    "  'add deployment_strategy section' "
-    "→ add_section\n"
-    "  'create market_analysis section' "
-    "→ add_section\n\n"
-
-    "- NEVER invent section names\n\n"
-
-    "- for modify_section, "
-    "target_section MUST exactly "
-    "match one of the available "
-    "sections\n\n"
-
-    "- use snake_case only\n\n"
-
-    "- return ONLY valid JSON\n\n"
+    "Formatting & output rules (STRICT):\n"
+    "- Return ONLY valid JSON and nothing else. Do not output any surrounding explanation, commentary, markdown code fences, or non-JSON text.\n"
+    "- The JSON object MUST contain exactly these keys (no extra keys): \"intent\", \"target_section\", \"search_query\", \"message\".\n"
+    "- Use snake_case for \"target_section\" and it MUST exactly match one of the provided section keys (case-sensitive match of the normalized snake_case). For \"add_section\" provide the snake_case form of the new section title.\n"
+    "- \"intent\" value MUST be one of: \"modify_section\", \"add_section\", \"delete_section\", \"no_section\".\n"
+    "- \"search_query\" may be an empty string; when present, keep it concise (<= 120 chars).\n"
+    "- \"message\" may be a short human-readable note (<= 280 chars).\n"
+    "- If uncertain, prefer \"modify_section\" rather than deleting an entire section.\n\n"
 
     "Available Sections:\n"
     "{sections}\n\n"
-    "Return Format:\n"
-    "{{\n"
-    "  \"intent\": \"modify_section\",\n"
-    "  \"target_section\": \"analysis_and_insights\",\n"
-    "  \"search_query\": \"\"  # optional: include a concise query for external search if needed\n"
-    "}}"
+
+    "Now classify the following user instruction and return the JSON object:\n"
+    "{{user_instruction}}\n"
 )
 
 REPORT_REFINEMENT_SECTION_EDIT_SYSTEM_PROMPT = (
@@ -182,11 +156,19 @@ REPORT_REFINEMENT_NEW_SECTION_SYSTEM_PROMPT = (
     "- avoid giant paragraph blocks\n"
     "- professional tone\n"
     "- avoid hallucinations\n"
-    "- return ONLY valid JSON\n\n"
+    "- return ONLY valid JSON with exact key \"new_section\"\n\n"
 
     "Format:\n"
     "{{\n"
     "  \"new_section\": \"...\"\n"
+    "}}\n\n"
+    "ADDITIONAL REQUIREMENTS:\n"
+    "- The generated section string MUST begin with an 'Abstract' paragraph followed by two newlines, then the section title line (no '##' heading), another blank line, then the section body.\n"
+    "- Preserve paragraph breaks using double newlines (\\n\\n).\n"
+    "- Do NOT include top-level headings (##) or surrounding markdown beyond subsection headings (###) if necessary.\n\n"
+    "Example output for the wormhole section request (JSON only):\n"
+    "{{\n"
+    "  \"new_section\": \"Abstract\\nThis study examines theoretical and observational developments in wormhole physics, focusing on Einstein-Rosen bridges and Morris-Thorne wormholes. While Schwarzschild wormholes are inherently unstable and non-traversable, thermodynamic analyses of Morris-Thorne wormholes provide frameworks for temperature characterization. Recent research highlights potential observational signatures, such as polarized light emissions, to differentiate wormholes from black holes. Theoretical advancements include exact solutions in general relativity and explorations of alternative gravitational models. These findings underscore the evolving understanding of wormhole stability, detectability, and their implications for spacetime structure.\\n\\nRelation Between Wormholes and Black Holes\\nWormholes and black holes share foundational connections in general relativity but exhibit distinct structural and observational characteristics. Both entities involve extreme spacetime curvature, yet wormholes theoretically permit two-way traversal through a throat-like geometry, whereas black holes feature one-way event horizons. Thermodynamic parallels exist in entropy calculations, but wormholes require exotic matter for stability, contrasting with black holes' classical energy conditions. Observational distinctions remain critical, as proposed signatures like photon ring asymmetries or gravitational lensing patterns could differentiate these objects in future astrophysical surveys.\"\n"
     "}}"
 )
 

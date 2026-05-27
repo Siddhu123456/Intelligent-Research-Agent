@@ -132,18 +132,29 @@ class ReportChatAgent:
                     report_chat_query
                 )
                 
-            rewritten_query = (
-                ContextTools
-                .rewrite_query(
-                    query=(
-                        report_chat_query
-                    ),
-
-                    conversation_context=(
-                        conversation_context
-                    ),
+            # Let the LLM both rewrite the query and decide if a short direct reply is appropriate.
+            rewritten_query, direct_reply = (
+                ContextTools.rewrite_and_classify(
+                    query=(report_chat_query),
+                    conversation_context=(conversation_context),
                 )
             )
+
+            if direct_reply:
+
+                state["report_chat_response"] = direct_reply
+
+                MemoryManager.update_memory(
+                    state=state,
+                    user_query=(report_chat_query),
+                    assistant_response=(direct_reply),
+                )
+
+                state["current_step"] = (
+                    CurrentStep.DONE.value
+                )
+
+                return state
 
             if not report_chat_query.strip():
 
@@ -298,18 +309,31 @@ class ReportChatAgent:
                     report_chat_query
                 )
                 
-            rewritten_query = (
-                ContextTools
-                .rewrite_query(
-                    query=(
-                        report_chat_query
-                    ),
-
-                    conversation_context=(
-                        conversation_context
-                    ),
+            # Use LLM to both rewrite and classify; streaming path will yield direct_reply immediately.
+            rewritten_query, direct_reply = (
+                ContextTools.rewrite_and_classify(
+                    query=(report_chat_query),
+                    conversation_context=(conversation_context),
                 )
             )
+
+            if direct_reply:
+
+                yield direct_reply
+
+                MemoryManager.update_memory(
+                    state=state,
+                    user_query=(report_chat_query),
+                    assistant_response=(direct_reply),
+                )
+
+                state["report_chat_response"] = direct_reply
+
+                state["current_step"] = (
+                    CurrentStep.DONE.value
+                )
+
+                return
 
             if not report_chat_query.strip():
 

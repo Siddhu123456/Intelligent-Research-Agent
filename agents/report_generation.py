@@ -226,7 +226,14 @@ class ReportGenerationAgent:
                     report
                 )
 
-            report = report.strip()
+                try:
+                    report = report.strip()
+                except Exception:
+                    # Defensive fallback: coerce to string then strip
+                    try:
+                        report = str(report).strip()
+                    except Exception:
+                        report = ""
             
             # ── Update active workspace report ───────────
 
@@ -306,8 +313,8 @@ class ReportGenerationAgent:
             (
                 ReportGenerationAgent
                 ._store_report_version(
-                    state=state,
-                    report=report,
+                        state=state,
+                        report=str(report),
                 )
             )
 
@@ -320,13 +327,15 @@ class ReportGenerationAgent:
             MemoryManager.update_memory(
                 state=state,
                 user_query=(
-                    state.get(
-                        "refinement_query",
-                        state["query"],
-                    )
+                        str(
+                            state.get(
+                                "refinement_query",
+                                state.get("query", ""),
+                            )
+                        )
                 ),
                 assistant_response=(
-                    report
+                        str(report)
                 ),
             )
 

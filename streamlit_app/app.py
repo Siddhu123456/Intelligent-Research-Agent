@@ -272,6 +272,15 @@ if st.session_state.graph_executor is None:
     st.session_state.graph_executor = GraphExecutor()
 
 
+def clear_workflow_error():
+    """Clear any lingering workflow error from session state."""
+    try:
+        if st.session_state.get("state") and st.session_state["state"].get("error"):
+            st.session_state["state"].pop("error", None)
+    except Exception:
+        pass
+
+
 # Workflow runner
 def run_workflow(state, label: str = "Running workflow…"):
     executor = st.session_state.graph_executor
@@ -322,6 +331,8 @@ with st.sidebar:
 
     if st.button("＋ New Research", use_container_width=True):
         try:
+            # Clear previous workflow errors when starting a new action
+            clear_workflow_error()
             VectorStoreManager.clear_persisted_data()
         except Exception:
             pass
@@ -404,6 +415,8 @@ with col_btn:
     )
 
 if generate_clicked:
+    # Clear previous workflow errors when user triggers generation
+    clear_workflow_error()
     if not query.strip():
         st.warning("Please enter a research topic.")
     else:
@@ -448,6 +461,8 @@ if st.session_state.state and st.session_state.state.get("active_report"):
             st.caption("Review the report above before exporting as PDF.")
         with col_gen:
             if st.button("Generate PDF", use_container_width=True):
+                # Clear previous workflow errors when generating PDF
+                clear_workflow_error()
                 try:
                     wf_state = StateManager.prepare_next_workflow(
                         previous_state=st.session_state.state,
@@ -477,6 +492,8 @@ if st.session_state.state and st.session_state.state.get("active_report"):
 
         # Regenerate: restart the whole report workflow from the beginning
         if st.button("Regenerate Report", use_container_width=True):
+            # Clear previous workflow errors when regenerating
+            clear_workflow_error()
             # Prevent duplicate handling if a regenerate is already running
             if st.session_state.get("regen_in_progress"):
                 st.warning("Regeneration already in progress.")
@@ -559,6 +576,8 @@ if st.session_state.state and st.session_state.state.get("active_report"):
             label_visibility="collapsed",
         )
         if st.button("Apply Refinement →", use_container_width=True):
+            # Clear previous workflow errors when applying refinement
+            clear_workflow_error()
             if not refinement_query.strip():
                 st.warning("Please enter refinement instructions.")
             else:
@@ -622,7 +641,8 @@ if st.session_state.state and st.session_state.state.get("active_report"):
 
         # Handle submission
         if chat_query and chat_query.strip():
-
+            # Clear previous workflow errors when user asks a chat question
+            clear_workflow_error()
             # 1. Show the user message immediately (optimistic)
             with chat_container:
                 with st.chat_message("user"):
@@ -709,6 +729,8 @@ if st.session_state.state and st.session_state.state.get("active_report"):
                         key=f"download_version_{version_key}",
                         use_container_width=True,
                     ):
+                        # Clear previous workflow errors when generating version PDF
+                        clear_workflow_error()
                         try:
                             version_state = StateFactory.create_initial_state(
                                 query=version.get("query", "Research Report")

@@ -129,21 +129,10 @@ class ReportRefinementTools:
         if "search_query" not in parsed_response:
             parsed_response["search_query"] = ""
 
-        # Safety correction
-
-        if (
-            intent == "modify_section"
-            and target_section
-            not in existing_sections
-        ):
-
-            parsed_response[
-                "target_section"
-            ] = (
-                existing_sections[0]
-                if existing_sections
-                else ""
-            )
+        # Rely on the LLM's classified intent and section. Do not apply
+        # additional heuristic corrections here; the system prompt enforces
+        # the expected behavior (including returning `no_section` when
+        # appropriate).
 
         return parsed_response
 

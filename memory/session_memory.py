@@ -21,7 +21,6 @@ class SessionMemory:
         """Store user message."""
 
         if not message.strip():
-
             return
 
         state["messages"].append(
@@ -36,9 +35,15 @@ class SessionMemory:
         message: str,
     ) -> None:
         """Store assistant message."""
+        # Defensive: coerce non-string inputs to string to avoid
+        # AttributeError when message is a dict or other type.
+        if not isinstance(message, str):
+            try:
+                message = str(message)
+            except Exception:
+                return
 
         if not message.strip():
-
             return
 
         state["messages"].append(
