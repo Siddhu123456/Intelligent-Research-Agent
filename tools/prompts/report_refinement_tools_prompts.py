@@ -152,6 +152,8 @@ REPORT_REFINEMENT_NEW_SECTION_SYSTEM_PROMPT = (
     "- preserve markdown hierarchy\n"
     "- concise but informative\n"
     "- organize content clearly\n"
+    "- don't generate abstracts for new sections\n"
+    "- no of the same sub-section heading as main heading it will repetative and unprofessional\n"
     "- preserve professional section structure\n"
     "- avoid giant paragraph blocks\n"
     "- professional tone\n"
