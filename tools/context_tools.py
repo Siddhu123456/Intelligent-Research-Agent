@@ -6,6 +6,8 @@ from utils.json_parser import (
     JSONParser,
 )
 
+from typing import Optional
+
 from utils.llm_factory import (
     LLMFactory,
 )
@@ -13,6 +15,7 @@ from utils.llm_factory import (
 from tools.prompts.context_tools_prompts import (
     CONTEXT_TOOLS_REFINE_QUERY_PROMPT,
     CONTEXT_TOOLS_REWRITE_QUERY_PROMPT,
+    CONTEXT_TOOLS_REWRITE_AND_CLASSIFY_PROMPT,
 )
 
 
@@ -95,6 +98,62 @@ class ContextTools:
         return (
             rewritten_query.strip()
         )
+
+    @staticmethod
+    def rewrite_and_classify(
+        query: str,
+        conversation_context: str,
+    ) -> tuple:
+        """Use the LLM to both rewrite the query and classify/generate a direct reply.
+
+        Returns a tuple `(rewritten_query, direct_reply)` where `direct_reply` is a
+        short string if LLM decides to reply directly (e.g., for greetings or
+        unrelated questions), otherwise `None`.
+        """
+
+        llm = (
+            LLMFactory
+            .create_qwen_llm(
+                temperature=0.0,
+            )
+        )
+
+        prompt = CONTEXT_TOOLS_REWRITE_AND_CLASSIFY_PROMPT.format(
+            conversation_context=conversation_context,
+            query=query,
+        )
+
+        response = llm.invoke(
+            prompt,
+        )
+
+        parsed_response = (
+            JSONParser.safe_extract(
+                content=(response.content),
+                fallback={
+                    "rewritten_query": query,
+                    "direct_reply": None,
+                },
+            )
+        )
+
+        rewritten_query = parsed_response.get("rewritten_query", query)
+
+        direct_reply = parsed_response.get("direct_reply")
+
+        # Defensive normalization
+        if not isinstance(rewritten_query, str):
+            rewritten_query = str(rewritten_query)
+
+        if direct_reply is not None and not isinstance(direct_reply, str):
+            direct_reply = str(direct_reply)
+
+        rewritten_query = rewritten_query.strip()
+
+        if direct_reply:
+            direct_reply = direct_reply.strip()
+
+        return (rewritten_query, direct_reply)
 
     @staticmethod
     def refine_query(

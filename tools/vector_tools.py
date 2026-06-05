@@ -75,20 +75,25 @@ class VectorTools:
         documents: list[Document] = []
 
         for result in results:
+            # Safely extract metadata values with sensible defaults
+            src_val = result.metadata.get("source", "vector_db") if hasattr(result, "metadata") else "vector_db"
+            try:
+                src = Domain(src_val)
+            except Exception:
+                src = Domain.VECTOR_DB
+
+            title = (result.metadata.get("title") if hasattr(result, "metadata") else None) or ""
+            url = (result.metadata.get("url") if hasattr(result, "metadata") else None) or None
+            content = result.page_content if getattr(result, "page_content", None) is not None else ""
+
             documents.append(
                 Document(
-                    source=Domain(
-                        result.metadata["source"]
-                    ),
-                    title=result.metadata[
-                        "title"
-                    ],
+                    source=src,
+                    title=title,
                     content=(
-                        result.page_content
+                        content
                     ),
-                    url=result.metadata.get(
-                        "url",
-                    ),
+                    url=url,
                 )
             )
 

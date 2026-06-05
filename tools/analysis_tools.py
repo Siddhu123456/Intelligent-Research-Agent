@@ -124,11 +124,23 @@ class AnalysisTools:
             )
         )
 
-        cleaned_findings = [
-            finding.strip()
-            for finding in findings
-            if finding.strip()
-        ]
+        def _normalize_finding(finding_item):
+            if isinstance(finding_item, str):
+                return finding_item
+            if isinstance(finding_item, dict):
+                # common keys that may carry the textual finding
+                for key in ("text", "finding", "claim", "content", "summary"):
+                    if key in finding_item and isinstance(finding_item[key], str):
+                        return finding_item[key]
+                # fall back to a simple string representation
+                return str(finding_item)
+            return str(finding_item)
+
+        cleaned_findings = []
+        for finding in findings:
+            norm = _normalize_finding(finding)
+            if norm and isinstance(norm, str) and norm.strip():
+                cleaned_findings.append(norm.strip())
 
         return cleaned_findings[
             :AnalysisTools

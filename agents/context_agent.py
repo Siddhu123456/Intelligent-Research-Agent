@@ -1,6 +1,4 @@
-from langsmith import (
-    traceable,
-)
+from utils.langsmith_wrapper import traceable
 
 from memory.session_memory import (
     SessionMemory,

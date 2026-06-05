@@ -15,12 +15,15 @@ class LLMFactory:
     @staticmethod
     def create_qwen_llm(
         temperature: float = 0.0,
+        streaming: bool = False,
     ) -> ChatGroq:
         return ChatGroq(
             model="qwen/qwen3-32b",
             temperature=temperature,
             api_key=settings.groq_api_key,
-        )  
+            reasoning_format="hidden",
+            streaming=streaming,
+        )
         
     @staticmethod
     def create_groq_tool_llm(

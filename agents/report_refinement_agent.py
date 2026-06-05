@@ -1,8 +1,6 @@
 from datetime import datetime
 
-from langsmith import (
-    traceable,
-)
+from utils.langsmith_wrapper import traceable
 
 from memory.memory_manager import (
     MemoryManager,
@@ -10,15 +8,13 @@ from memory.memory_manager import (
 
 from state.constants import (
     CurrentStep,
+    Domain,
 )
 
 from state.schema import (
     ResearchState,
 )
 
-from tools.report_compression_tools import (
-    ReportCompressionTools,
-)
 
 from tools.report_refinement_tools import (
     ReportRefinementTools,
@@ -26,6 +22,14 @@ from tools.report_refinement_tools import (
 
 from tools.report_section_tools import (
     ReportSectionTools,
+)
+
+from tools.decompose_tools import (
+    DecompositionTools,
+)
+
+from agents.retrieval import (
+    RetrievalAgent,
 )
 
 from tools.report_vector_tools import (
@@ -60,9 +64,28 @@ class ReportRefinementAgent:
 
         # Update full report
 
+        # Avoid accidental duplication: if the reconstructed
+        # report contains multiple copies of the previous
+        # active report, remove subsequent duplicates.
+        prev_active = state.get("active_report", "") or ""
+        new_report = reconstructed_report or ""
+
+        try:
+            prev_norm = prev_active.strip()
+            if prev_norm:
+                occurrences = new_report.count(prev_norm)
+                if occurrences > 1:
+                    # Remove subsequent occurrences, keep the first
+                    first_removed = new_report.replace(prev_norm, "__SPLIT_MARKER__", 1)
+                    # Remove remaining occurrences of the exact block
+                    first_removed = first_removed.replace(prev_norm, "")
+                    new_report = first_removed.replace("__SPLIT_MARKER__", prev_norm)
+        except Exception:
+            new_report = reconstructed_report
+
         state[
             "active_report"
-        ] = reconstructed_report
+        ] = new_report
 
         # Update structured sections
 
@@ -76,45 +99,6 @@ class ReportRefinementAgent:
 
         # Incrementally update
         # compressed workspace memory
-
-        updated_section_content = (
-            report_sections.get(
-                updated_section_name,
-                "",
-            )
-        )
-
-        previous_context = (
-            state.get(
-                "compressed_report_context",
-                "",
-            )
-        )
-
-        compressed_context = (
-            ReportCompressionTools
-            .update_compressed_context(
-                previous_context=(
-                    previous_context
-                ),
-
-                updated_section_name=(
-                    updated_section_name
-                ),
-
-                updated_section_content=(
-                    updated_section_content
-                ),
-
-                refinement_query=(
-                    refinement_query
-                ),
-            )
-        )
-
-        state[
-            "compressed_report_context"
-        ] = compressed_context
 
         # Store version history
 
@@ -356,8 +340,45 @@ class ReportRefinementAgent:
                             .keys()
                         )
                     ),
+                    report_title=(
+                        report_title
+                    ),
                 )
             )
+
+            # If the classifier provided a search query, run decomposition + retrieval
+            search_query = refinement_intent.get("search_query", "") or ""
+            if search_query.strip():
+                logger.info("Refinement provided search query: %s", search_query)
+
+                # Decompose the provided search query into sub-queries
+                sub_queries = DecompositionTools.decompose_query(query=search_query)
+
+                # Filter arXiv usage as elsewhere
+                arxiv_count = 0
+                filtered = []
+                for sq in sub_queries:
+                    if sq.domain == Domain.ARXIV:
+                        arxiv_count += 1
+                        if arxiv_count > 3:
+                            continue
+                    filtered.append(sq)
+
+                state["sub_queries"] = filtered
+
+                # Contextualized query used by retrieval
+                state["contextualized_query"] = search_query
+
+                # Run retrieval synchronously (it's async)
+                try:
+                    import asyncio
+
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(RetrievalAgent.run(state))
+                    loop.close()
+                except Exception:
+                    logger.exception("Retrieval during refinement failed")
 
             intent = (
                 refinement_intent.get(
@@ -383,6 +404,14 @@ class ReportRefinementAgent:
                     target_section
                 )
             )
+
+            # If classifier returned explicit no-section signal (e.g. deletion intent
+            # but no matching section), surface a clear error and stop.
+            if intent == "no_section":
+                logger.warning("No matching section found for deletion")
+                state["error"] = refinement_intent.get("message", "No section to delete")
+                state["current_step"] = CurrentStep.ERROR.value
+                return state
             
             # Fallback protection for
             # invalid target sections.
@@ -420,6 +449,8 @@ class ReportRefinementAgent:
 
             # MODIFY EXISTING SECTION
 
+            session_id = state.get("session_id", "")
+
             if (
                 intent
                 == "modify_section"
@@ -435,15 +466,12 @@ class ReportRefinementAgent:
                 updated_section = (
                     ReportRefinementTools
                     .refine_section(
-                        section_name=(
-                            target_section
-                        ),
-                        section_content=(
-                            existing_content
-                        ),
-                        refinement_query=(
-                            refinement_query
-                        ),
+                        section_name=(target_section),
+                        section_content=(existing_content),
+                        refinement_query=(refinement_query),
+                        report_title=(report_title),
+                        session_id=(session_id),
+                        retrieved_documents=(state.get("retrieved_documents", [])),
                     )
                 )
 
@@ -465,21 +493,13 @@ class ReportRefinementAgent:
                 new_section = (
                     ReportRefinementTools
                     .generate_new_section(
-                        section_name=(
-                            target_section
-                        ),
-
-                        report_topic=(
-                            state["query"]
-                        ),
-
-                        refinement_query=(
-                            refinement_query
-                        ),
-
-                        existing_sections=(
-                            report_section_order
-                        ),
+                        section_name=(target_section),
+                        report_topic=(state["query"]),
+                        report_title=(report_title),
+                        refinement_query=(refinement_query),
+                        existing_sections=(report_section_order),
+                        session_id=(session_id),
+                        retrieved_documents=(state.get("retrieved_documents", [])),
                     )
                 )
                 
@@ -591,6 +611,34 @@ class ReportRefinementAgent:
                 for key in report_sections:
                     print(key)
 
+            # DELETE SECTION
+            elif (
+                intent
+                == "delete_section"
+            ):
+
+                logger.info(
+                    "Deleting section: %s",
+                    target_section,
+                )
+
+                if target_section in report_sections:
+                    report_sections, report_section_order = (
+                        ReportSectionTools.delete_section(
+                            sections=report_sections,
+                            section_order=report_section_order,
+                            section_name=target_section,
+                        )
+                    )
+
+                    logger.info("Section '%s' removed", target_section)
+
+                else:
+                    logger.warning("Requested section to delete not found: %s", target_section)
+                    state["error"] = "No section to delete"
+                    state["current_step"] = CurrentStep.ERROR.value
+                    return state
+
             # Reconstruct report
 
             logger.info(
@@ -656,6 +704,12 @@ class ReportRefinementAgent:
             
             # Update memory
 
+            assistant_msg = (
+                f"Deleted section: {target_section}"
+                if intent == "delete_section"
+                else f"Updated section: {target_section}"
+            )
+
             MemoryManager.update_memory(
                 state=state,
                 user_query=(
@@ -665,10 +719,7 @@ class ReportRefinementAgent:
                     ).strip()
                     or state["query"]
                 ),
-                assistant_response=(
-                    f"Updated section: "
-                    f"{target_section}"
-                ),
+                assistant_response=(assistant_msg),
             )
 
             state["current_step"] = (

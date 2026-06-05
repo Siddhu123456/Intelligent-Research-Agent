@@ -1,6 +1,4 @@
-from langsmith import (
-    traceable,
-)
+from utils.langsmith_wrapper import traceable
 
 from memory.memory_manager import (
     MemoryManager,
@@ -134,18 +132,29 @@ class ReportChatAgent:
                     report_chat_query
                 )
                 
-            rewritten_query = (
-                ContextTools
-                .rewrite_query(
-                    query=(
-                        report_chat_query
-                    ),
-
-                    conversation_context=(
-                        conversation_context
-                    ),
+            # Let the LLM both rewrite the query and decide if a short direct reply is appropriate.
+            rewritten_query, direct_reply = (
+                ContextTools.rewrite_and_classify(
+                    query=(report_chat_query),
+                    conversation_context=(conversation_context),
                 )
             )
+
+            if direct_reply:
+
+                state["report_chat_response"] = direct_reply
+
+                MemoryManager.update_memory(
+                    state=state,
+                    user_query=(report_chat_query),
+                    assistant_response=(direct_reply),
+                )
+
+                state["current_step"] = (
+                    CurrentStep.DONE.value
+                )
+
+                return state
 
             if not report_chat_query.strip():
 
@@ -239,3 +248,188 @@ class ReportChatAgent:
             )
 
             return state
+        
+    @staticmethod
+    @traceable(
+        name="stream_report_chat_agent",
+    )
+    async def stream_run(
+        state: ResearchState,
+    ):
+        try:
+
+            logger.info(
+                "Starting report chat workflow",
+            )
+            
+            recent_messages = (
+                SessionMemory
+                .get_recent_messages(
+                    state,
+                )
+            )
+
+            conversation_context = (
+                ContextTools
+                .build_conversation_context(
+                    messages=(
+                        recent_messages
+                    ),
+                    summary=(
+                        state.get(
+                            "conversation_summary",
+                            "",
+                        )
+                    ),
+                )
+            )
+
+            report_chat_query = (
+                state.get(
+                    "report_chat_query",
+                    "",
+                )
+            )
+            
+            report_sections = (
+                state.get(
+                    "report_sections",
+                    {},
+                )
+            )
+
+            # Validate user question
+
+            if not isinstance(
+                report_chat_query,
+                str,
+            ):
+
+                report_chat_query = str(
+                    report_chat_query
+                )
+                
+            # Use LLM to both rewrite and classify; streaming path will yield direct_reply immediately.
+            rewritten_query, direct_reply = (
+                ContextTools.rewrite_and_classify(
+                    query=(report_chat_query),
+                    conversation_context=(conversation_context),
+                )
+            )
+
+            if direct_reply:
+
+                yield direct_reply
+
+                MemoryManager.update_memory(
+                    state=state,
+                    user_query=(report_chat_query),
+                    assistant_response=(direct_reply),
+                )
+
+                state["report_chat_response"] = direct_reply
+
+                state["current_step"] = (
+                    CurrentStep.DONE.value
+                )
+
+                return
+
+            if not report_chat_query.strip():
+
+                logger.warning(
+                    "Empty report chat query",
+                )
+
+                state[
+                    "report_chat_response"
+                ] = (
+                    "Please provide a valid "
+                    "question about the report."
+                )
+
+                state["current_step"] = (
+                    CurrentStep.DONE.value
+                )
+
+                return
+
+            logger.info(
+                "Running semantic report "
+                "RAG workflow",
+            )
+            
+            full_response = ""
+
+            async for token in (
+                ReportChatTools
+                .stream_report_answer(
+                    state=state,
+
+                    question=(
+                        rewritten_query
+                    ),
+
+                    conversation_context=(
+                        conversation_context
+                    ),
+                )
+            ):
+                full_response += token
+
+                yield token
+
+            # Defensive normalization
+
+            if not isinstance(
+                full_response,
+                str,
+            ):
+
+                full_response = str(
+                    full_response
+                )
+
+            state[
+                "report_chat_response"
+            ] = full_response
+
+            # Update conversational memory
+
+            MemoryManager.update_memory(
+                state=state,
+                user_query=(
+                    report_chat_query
+                ),
+                assistant_response=(
+                    full_response
+                ),
+            )
+
+            state["current_step"] = (
+                CurrentStep.DONE.value
+            )
+
+            logger.info(
+                "Report chat completed",
+            )
+
+            return
+
+        except Exception as error:
+
+            logger.error(
+                "Report chat failed: %s",
+                str(error),
+            )
+
+            state["error"] = str(
+                error,
+            )
+
+            state["current_step"] = (
+                CurrentStep.ERROR.value
+            )
+
+            return
+        

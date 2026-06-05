@@ -22,7 +22,6 @@ class StateManager:
         "report_version_history",
         "active_report",
         "report_title",
-        "compressed_report_context",
         "report_sections",
         "report_section_order",
         "generated_pdf",
@@ -166,15 +165,6 @@ class StateManager:
             state["active_report"] = (
                 persistent_state.get(
                     "active_report",
-                    "",
-                )
-            )
-
-            state[
-                "compressed_report_context"
-            ] = (
-                persistent_state.get(
-                    "compressed_report_context",
                     "",
                 )
             )

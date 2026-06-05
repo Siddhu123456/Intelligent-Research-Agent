@@ -33,6 +33,8 @@ class TestLLMFactory:
             model="qwen/qwen3-32b",
             temperature=0.0,
             api_key=ANY,
+            reasoning_format="hidden",
+            streaming=False,
         )
 
         assert (

@@ -1,3 +1,4 @@
+from agents.report_chat_agent import ReportChatAgent
 from graph.builder import (
     GraphBuilder,
 )
@@ -247,3 +248,20 @@ class GraphExecutor:
                 prepared_state,
             )
         )
+        
+    async def stream_report_chat(
+        self,
+        state: ResearchState,
+    ):
+        """
+        Stream report chat responses.
+        """
+
+        async for token in (
+            ReportChatAgent
+            .stream_run(
+                state
+            )
+        ):
+
+            yield token

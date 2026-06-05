@@ -1,4 +1,4 @@
-from langsmith import traceable
+from utils.langsmith_wrapper import traceable
 
 from state.constants import CurrentStep, Domain
 from state.schema import ResearchState

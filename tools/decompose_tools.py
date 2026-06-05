@@ -64,20 +64,26 @@ class DecompositionTools:
             | llm
         )
 
-        response = chain.invoke(
-            {
-                "query": query,
-            }
-        )
+        response = chain.invoke({"query": query})
 
-        parsed_response = (
-            JSONParser.safe_extract(
-                content=response.content,
-                fallback={
-                    "sub_queries": [],
-                },
+        # Support both plain LLM content (response.content)
+        # and structured pydantic outputs returned directly
+        if hasattr(response, "content"):
+            raw = response.content
+        else:
+            try:
+                raw = response.dict()
+            except Exception:
+                raw = response
+
+        # If the chain returned a structured dict/model, use it directly.
+        if isinstance(raw, dict):
+            parsed_response = raw
+        else:
+            parsed_response = JSONParser.safe_extract(
+                content=raw,
+                fallback={"sub_queries": []},
             )
-        )
 
         sub_queries_data = (
             parsed_response.get(

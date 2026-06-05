@@ -1,6 +1,4 @@
-from langsmith import (
-    traceable,
-)
+from utils.langsmith_wrapper import traceable
 
 import os
 import tempfile

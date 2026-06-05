@@ -17,7 +17,6 @@ from utils.llm_factory import (
 from tools.prompts.report_tools_prompts import (
     REPORT_BODY_SYSTEM_PROMPT,
     REPORT_METADATA_SYSTEM_PROMPT,
-    REPORT_REFINE_EXISTING_REPORT_SYSTEM_PROMPT,
 )
 
 
@@ -236,88 +235,7 @@ class ReportTools:
             ]
         )
 
-    @staticmethod
-    def refine_existing_report(
-        existing_report: str,
-        refinement_query: str,
-    ) -> str:
-        """Refine existing report."""
-
-        llm = (
-            LLMFactory
-            .create_qwen_llm(
-                temperature=0.1,
-            )
-        )
-
-        prompt = (
-            ChatPromptTemplate
-            .from_messages(
-                [
-                    (
-                        "system",
-                        REPORT_REFINE_EXISTING_REPORT_SYSTEM_PROMPT,
-                    ),
-                    (
-                        "human",
-                        (
-                            "Existing Report:\n"
-                            "{existing_report}\n\n"
-
-                            "Refinement Request:\n"
-                            "{refinement_query}"
-                        ),
-                    ),
-                ]
-            )
-        )
-
-        chain = (
-            prompt
-            | llm
-        )
-
-        response = chain.invoke(
-            {
-                "existing_report": (
-                    existing_report
-                ),
-                "refinement_query": (
-                    refinement_query
-                ),
-            }
-        )
-
-        parsed_response = (
-            JSONParser.safe_extract(
-                content=(
-                    response.content
-                ),
-                fallback={
-                    "refined_report": (
-                        existing_report
-                    ),
-                },
-            )
-        )
-
-        refined_report = (
-            parsed_response.get(
-                "refined_report",
-                existing_report,
-            )
-        )
-
-        if not isinstance(
-            refined_report,
-            str,
-        ):
-
-            refined_report = str(
-                refined_report
-            )
-
-        return refined_report.strip()
+    # note: report refinement is implemented in tools/report_refinement_tools.py
 
     @staticmethod
     def generate_summary(

@@ -438,6 +438,38 @@ class ReportSectionTools:
         return ordered_sections
 
     @staticmethod
+    def delete_section(
+        sections: dict[str, str],
+        section_order: list[str],
+        section_name: str,
+    ) -> tuple[dict[str, str], list[str]]:
+        """
+        Remove a section and its content from the sections
+        dict and update the section order list.
+        Returns updated (sections, section_order).
+        """
+
+        normalized = (
+            ReportSectionTools
+            .normalize_section_name(
+                section_name
+            )
+        )
+
+        if normalized in sections:
+            try:
+                # Remove the section
+                sections.pop(normalized, None)
+
+                # Remove from ordering if present
+                if normalized in section_order:
+                    section_order = [s for s in section_order if s != normalized]
+            except Exception:
+                pass
+
+        return sections, section_order
+
+    @staticmethod
     def section_exists(
         sections: dict[str, str],
         section_name: str,

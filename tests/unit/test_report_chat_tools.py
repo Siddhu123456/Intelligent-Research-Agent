@@ -63,7 +63,6 @@ class TestReportChatTools:
             state = {
                 "session_id": "sess1",
                 "report_sections": {},
-                "compressed_report_context": "",
             }
             answer = ReportChatTools.answer_report_question(
                 state=state,
@@ -84,8 +83,7 @@ class TestReportChatTools:
     ):
         """Test empty report handling."""
 
-        state = {"session_id": "s", "report_sections": {}, "compressed_report_context": ""}
-        # use a summary keyword so the method uses compressed_report_context
+        state = {"session_id": "s", "report_sections": {}}
         answer = ReportChatTools.answer_report_question(
             state=state,
             question=("Please provide a summary"),
@@ -146,7 +144,7 @@ class TestReportChatTools:
             "tools.report_chat_tools.ReportVectorTools.semantic_report_search",
             return_value=[{"section": "s", "content": "AI systems data"}],
         ):
-            state = {"session_id": "sess2", "report_sections": {}, "compressed_report_context": ""}
+            state = {"session_id": "sess2", "report_sections": {}}
             answer = ReportChatTools.answer_report_question(
                 state=state,
                 question=("Give number"),
@@ -217,7 +215,7 @@ class TestReportChatTools:
             "tools.report_chat_tools.ReportVectorTools.semantic_report_search",
             return_value=[{"section": "s", "content": long_answer}],
         ):
-            state = {"session_id": "sess3", "report_sections": {}, "compressed_report_context": ""}
+            state = {"session_id": "sess3", "report_sections": {}}
             answer = ReportChatTools.answer_report_question(
                 state=state,
                 question=("Explain AI"),
@@ -282,7 +280,7 @@ class TestReportChatTools:
             "tools.report_chat_tools.ReportVectorTools.semantic_report_search",
             return_value=[{"section": "s", "content": ""}],
         ):
-            state = {"session_id": "sess4", "report_sections": {}, "compressed_report_context": ""}
+            state = {"session_id": "sess4", "report_sections": {}}
             answer = ReportChatTools.answer_report_question(
                 state=state,
                 question=("Explain findings"),

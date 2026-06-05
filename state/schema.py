@@ -83,7 +83,6 @@ class ResearchState(
         dict
     ]
     
-    compressed_report_context: str
 
     # Document generation state
 
